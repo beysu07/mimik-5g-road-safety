@@ -216,3 +216,32 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# Project data and sensitive files
+data/raw/
+data/private/
+data/processed/
+datasets/
+annotations/
+
+# Videos and images
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png
+
+# Model weights and outputs
+weights/
+runs/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.tflite
+
+# Environment variables and secrets
+.env
+.env.local
+secrets/
