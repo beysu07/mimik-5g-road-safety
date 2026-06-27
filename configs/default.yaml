@@ -1,0 +1,31 @@
+project:
+  name: "MIMIK"
+  version: "0.1.0"
+
+video:
+  input_source: "data/sample/sample_video.mp4"
+  frame_rate: 10
+  resize_width: 1280
+  resize_height: 720
+
+model:
+  detection_model: "weights/detection_model.pt"
+  ocr_model: "weights/ocr_model.pt"
+  confidence_threshold: 0.50
+  iou_threshold: 0.45
+
+qod:
+  enabled: false
+  trigger_distance_threshold: 30
+  trigger_confidence_threshold: 0.75
+  cooldown_seconds: 10
+
+api:
+  use_mock_services: true
+  number_verification_endpoint: ""
+  quality_on_demand_endpoint: ""
+
+logging:
+  level: "INFO"
+  save_outputs: true
+  output_dir: "runs/"

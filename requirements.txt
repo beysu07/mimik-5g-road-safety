@@ -1,6 +1,9 @@
 ultralytics
+torch
+torchvision
 opencv-python
 easyocr
 numpy
 scipy
+pandas
 pyyaml
