@@ -28,3 +28,18 @@ def normalize_plate(text):
     t = text.upper().translate(_TR)
     t = re.sub(r'[^A-Z0-9]', '', t)
     return t if PLATE_RE.match(t) else None
+
+
+def extract_plate(text):
+    """Gurultulu OCR metninin icindeki gecerli TR plaka dizisini bulur."""
+    if not text:
+        return None
+    t = text.upper().translate(_TR)
+    t = re.sub(r'[^A-Z0-9]', '', t)
+    # Turk plakalarinin bosluksuz uzunlugu daima 7 veya 8 karakterdir.
+    for length in (8, 7):
+        for start in range(len(t) - length + 1):
+            candidate = t[start:start + length]
+            if PLATE_RE.fullmatch(candidate):
+                return candidate
+    return None

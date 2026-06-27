@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from collections import Counter, defaultdict
 from ultralytics import YOLO
-from src.utils import clahe_bgr, normalize_plate
+from src.utils import clahe_bgr, extract_plate, normalize_plate
 
 # Egitim sonrasi Docker icin weights/ altina kopyalanacak; lokal testte runs/ yollari.
 WEIGHTS = {
@@ -14,6 +14,7 @@ WEIGHTS = {
     'belt':    os.environ.get('W_BELT',  'runs/detect/seatbelt/weights/best.pt'),
     'action':  os.environ.get('W_ACTION', 'runs/detect/phone_action/weights/best.pt'),
     'person':  os.environ.get('W_PERSON', 'runs/detect/phone_merged/weights/best.pt'),
+    'cabin':   os.environ.get('W_CABIN', 'runs/detect/self_actions_hd/weights/best.pt'),
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
@@ -182,6 +183,7 @@ class Pipeline:
         self.m_belt = _load(WEIGHTS['belt'])
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
         self.m_person = _load(WEIGHTS['person'])   # person -> yolcular (kabin ust ROI)
+        self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: water->su_icme, sigara->sigara_icme
         try:
             import easyocr, torch
             self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
@@ -241,7 +243,7 @@ class Pipeline:
                                 allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', detail=1)
         text = ''.join(t for _, t, _ in res)
         oconf = float(np.mean([c for *_, c in res])) if res else 0.0
-        norm = normalize_plate(text)
+        norm = extract_plate(text)
         return (norm, oconf) if norm else (None, 0.0)
 
     def _phone(self, crop):
@@ -264,6 +266,22 @@ class Pipeline:
         confs = [float(b.conf) for b in r.boxes if r.names[int(b.cls)] == 'person']
         return len(confs), (max(confs) if confs else 0.0)
 
+    def _cabin_objects(self, roi):
+        """Self_v2 HD modeliyle kabin ROI'sinde su/sigara tespiti (kucukse 1280'e buyut)."""
+        if self.m_cabin is None or roi is None or roi.size == 0:
+            return {}
+        h, w = roi.shape[:2]
+        if max(h, w) < 1280:
+            s = 1280.0 / max(h, w)
+            roi = cv2.resize(roi, (int(w * s), int(h * s)))
+        r = self.m_cabin.predict(roi, verbose=False, conf=0.4)[0]
+        out = {}
+        for b in r.boxes:
+            name = r.names[int(b.cls)]; c = float(b.conf)
+            if name in ('water', 'sigara') and c > out.get(name, 0):
+                out[name] = c
+        return out
+
     def _belt(self, crop):
         if self.m_belt is None or crop.size == 0:
             return None
@@ -278,6 +296,9 @@ class Pipeline:
 
     def run(self, video_path):
         cap = cv2.VideoCapture(video_path)
+        if hasattr(cv2, 'CAP_PROP_ORIENTATION_AUTO'):
+            # MOV rotation metadata'sini karelere uygula; aksi halde modeller yan goruntu alir.
+            cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
         if not cap.isOpened():
             return {'video_id': os.path.basename(video_path), 'arac_bilgisi': {}, 'tespitler': []}
         fps = cap.get(cv2.CAP_PROP_FPS) or 25
@@ -306,6 +327,11 @@ class Pipeline:
                 cabin = crop[0:int(crop.shape[0] * 0.65), :]   # arabanin ust kabin (greenhouse)
                 npc, pcf = self._persons(cabin)
                 mem.add_persons(t, npc, pcf)
+                cab = self._cabin_objects(cabin)
+                if 'water' in cab:
+                    mem.add_action('su_icme', t, cab['water'])
+                if 'sigara' in cab:
+                    mem.add_action('sigara_icme', t, cab['sigara'])
                 lab, c = self._cls(self.m_type, crop); mem.vote_type(lab, c)
                 lab, c = self._cls(self.m_color, crop); mem.vote_color(lab, c)
                 ptext, poconf = self._plate(crop); mem.add_plate(ptext, poconf)
