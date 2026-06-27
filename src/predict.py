@@ -41,6 +41,7 @@ class VehiclePassMemory:
         self.plate_reads = []          # (metin, ocr_guven)
         self.track = []                # (t, cx, genislik) - arac yorungesi
         self.person_obs = []           # (t, kisi_sayisi, max_guven) - yolcular
+        self.action_obs = defaultdict(list)   # etiket -> [(t, conf)] - kalicilik icin
         self.events = []               # tespitler
         self._last = {}                # etiket -> son zaman (dedup)
 
@@ -63,6 +64,9 @@ class VehiclePassMemory:
     def add_persons(self, t, count, conf):
         if count > 0:
             self.person_obs.append((t, count, conf))
+
+    def add_action(self, etiket, t, conf):
+        self.action_obs[etiket].append((t, conf))
 
     def add_event(self, t, kategori, etiket, conf, gap=2.5):
         # Surekli bir eylemi TEK olay say: yeni olay ancak onceki tespitten gap
@@ -135,9 +139,20 @@ class VehiclePassMemory:
             else:
                 break                          # ust koltuk dolu degilse alttakiler de degil
 
+    def _emit_actions(self):
+        """Sofor eylemlerini KALICILIK ile uret: >=3 kare VE gorunur karelerin >=%25'i.
+        Tek/birkaç karelik yanlis-pozitifi (hayalet kemer/telefon) eler."""
+        total = max(1, len(self.track))
+        for etiket, obs in self.action_obs.items():
+            if len(obs) >= 3 and len(obs) / total >= 0.25:
+                t_m, c_m = max(obs, key=lambda x: x[1])
+                self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': 'sofor_eylemi',
+                                    'etiket': etiket, 'confidence_score': round(c_m, 2)})
+
     def result(self, video_id):
         self.detect_slalom()
         self._emit_passengers()
+        self._emit_actions()
         tip, tconf = self._pick(self.type_votes, self.type_conf)
         renk, rconf = self._pick(self.color_votes, self.color_conf)
         plaka, pconf = self._fuse_plate()
@@ -168,8 +183,8 @@ class Pipeline:
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
         self.m_person = _load(WEIGHTS['person'])   # person -> yolcular (kabin ust ROI)
         try:
-            import easyocr
-            self.ocr = easyocr.Reader(['en'], gpu=True)
+            import easyocr, torch
+            self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
         except Exception as e:
             print('easyocr yuklenemedi:', e)
             self.ocr = None
@@ -232,7 +247,7 @@ class Pipeline:
     def _phone(self, crop):
         if self.m_action is None or crop.size == 0:
             return None
-        r = self.m_action.predict(crop, verbose=False, conf=0.35)[0]
+        r = self.m_action.predict(crop, verbose=False, conf=0.45)[0]
         best = None
         for b in r.boxes:
             if r.names[int(b.cls)] == 'mobile':
@@ -252,7 +267,7 @@ class Pipeline:
     def _belt(self, crop):
         if self.m_belt is None or crop.size == 0:
             return None
-        r = self.m_belt.predict(crop, verbose=False, conf=0.35)[0]
+        r = self.m_belt.predict(crop, verbose=False, conf=0.5)[0]
         best = None
         for b in r.boxes:
             if r.names[int(b.cls)] == 'no seat-belt':
@@ -296,10 +311,10 @@ class Pipeline:
                 ptext, poconf = self._plate(crop); mem.add_plate(ptext, poconf)
                 ph = self._phone(crop)
                 if ph is not None:
-                    mem.add_event(t, 'sofor_eylemi', 'telefonla_konusma', ph)
+                    mem.add_action('telefonla_konusma', t, ph)
                 bc = self._belt(crop)
                 if bc is not None:
-                    mem.add_event(t, 'sofor_eylemi', 'emniyet_kemeri_ihlali', bc)
+                    mem.add_action('emniyet_kemeri_ihlali', t, bc)
             except Exception:
                 continue   # gecici hata ( or. OOM) bu kareyi atla, gecisi surdur
         cap.release()
