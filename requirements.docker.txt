@@ -1,0 +1,6 @@
+ultralytics
+easyocr
+numpy
+scipy
+pandas
+pyyaml
