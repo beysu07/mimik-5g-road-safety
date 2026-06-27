@@ -144,16 +144,17 @@ class VehiclePassMemory:
         """Sofor eylemlerini KALICILIK ile uret: >=3 kare VE gorunur karelerin >=%25'i.
         Tek/birkaç karelik yanlis-pozitifi (hayalet kemer/telefon) eler."""
         total = max(1, len(self.track))
+        yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
         for etiket, obs in self.action_obs.items():
             if len(obs) >= 3 and len(obs) / total >= 0.25:
                 t_m, c_m = max(obs, key=lambda x: x[1])
-                self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': 'sofor_eylemi',
+                kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
+                self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': kat,
                                     'etiket': etiket, 'confidence_score': round(c_m, 2)})
 
     def result(self, video_id):
         self.detect_slalom()
-        self._emit_passengers()
-        self._emit_actions()
+        self._emit_actions()   # yolcular artik Self_v2 koltuk modelinden (domain-eslesmeli)
         tip, tconf = self._pick(self.type_votes, self.type_conf)
         renk, rconf = self._pick(self.color_votes, self.color_conf)
         plaka, pconf = self._fuse_plate()
@@ -278,7 +279,7 @@ class Pipeline:
         out = {}
         for b in r.boxes:
             name = r.names[int(b.cls)]; c = float(b.conf)
-            if name in ('water', 'sigara') and c > out.get(name, 0):
+            if name in ('water', 'sigara', 'on_koltuk_2', 'arka_koltuk') and c > out.get(name, 0):
                 out[name] = c
         return out
 
@@ -332,6 +333,10 @@ class Pipeline:
                     mem.add_action('su_icme', t, cab['water'])
                 if 'sigara' in cab:
                     mem.add_action('sigara_icme', t, cab['sigara'])
+                if 'on_koltuk_2' in cab:       # on yolcu -> on_koltuk
+                    mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
+                if 'arka_koltuk' in cab:       # arka yolcu -> arka_koltuk_1
+                    mem.add_action('arka_koltuk_1', t, cab['arka_koltuk'])
                 lab, c = self._cls(self.m_type, crop); mem.vote_type(lab, c)
                 lab, c = self._cls(self.m_color, crop); mem.vote_color(lab, c)
                 ptext, poconf = self._plate(crop); mem.add_plate(ptext, poconf)
