@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Model agirliklari (buyuk - ayri paylasilacak)
+*.pt
+*.onnx
+*.engine
+
+# Veri setleri ve egitim ciktilari (buyuk)
+datasets/
+runs/
+outputs/
+
+# Videolar / medya
+veri/
+*.mp4
+*.avi
+*.mov
+*.png
+*.jpg
+
+# Editor / sistem
+.vscode/
+.idea/
+*.log
+metrics_log.csv
