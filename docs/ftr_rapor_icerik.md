@@ -147,8 +147,10 @@ videolarımız dahil **beş farklı araçta** uçtan uca çalıştırılmış, h
 `results.json` üretmiştir. Örnek: TOGG SUV için `{tip: suv, plaka: 34TC8532, renk: siyah}` +
 telefon tespiti; kırmızı/beyaz araçlarda da tip/renk/plaka doğru üretilmiş, kemerli
 sürücüde ihlal **üretilmemiştir** (yanlış-pozitif yok). Çıkarım hızı YOLO11s için RTX 4060'ta
-~4.8 ms/görüntü ölçülmüştür; konteyner T4 üzerinde 10 dk bütçesinin altında çalışır.
-*(Docker üzerinde ölçülen uçtan uca süre ve FPS bu bölüme eklenecektir.)*
+~4.8 ms/görüntü ölçülmüştür. **Docker konteyneri çevrimdışı (`--network none`), GPU
+üzerinde** 4K/8 sn'lik bir videoyu **48 saniyede** işleyip geçerli `results.json` üretmiştir
+— 10 dakikalık çalışma bütçesinin çok altında. İmaj boyutu **3.71 GB** (8 GB sınırının
+altında). Bu, sistemin şartname kısıtlarına (offline, ≤8 GB, ≤10 dk) uygunluğunu kanıtlar.
 
 **Çözümümüze neden güveniyoruz?** Sonuçlar modellerin görmediği test bölmelerinden alınmış;
 araç-bilgisi (tip/renk/plaka) yüksek başarımla ve beş farklı araçta tutarlı üretilmektedir.
