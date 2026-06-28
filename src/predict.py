@@ -15,6 +15,8 @@ WEIGHTS = {
     'action':  os.environ.get('W_ACTION', 'runs/detect/phone_action/weights/best.pt'),
     'person':  os.environ.get('W_PERSON', 'runs/detect/phone_merged/weights/best.pt'),
     'cabin':   os.environ.get('W_CABIN', 'runs/detect/self_actions_hd/weights/best.pt'),
+    'bottle':  os.environ.get('W_BOTTLE', 'runs/detect/bottle_external/weights/best.pt'),
+    'cigarette': os.environ.get('W_CIGARETTE', 'runs/detect/cigarette/weights/best.pt'),
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
@@ -141,12 +143,18 @@ class VehiclePassMemory:
                 break                          # ust koltuk dolu degilse alttakiler de degil
 
     def _emit_actions(self):
-        """Sofor eylemlerini KALICILIK ile uret: >=3 kare VE gorunur karelerin >=%25'i.
-        Tek/birkaç karelik yanlis-pozitifi (hayalet kemer/telefon) eler."""
+        """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
         total = max(1, len(self.track))
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
+        short_actions = {'su_icme', 'sigara_icme', 'telefonla_konusma'}
         for etiket, obs in self.action_obs.items():
-            if len(obs) >= 3 and len(obs) / total >= 0.25:
+            ordered = sorted(obs)
+            if etiket in short_actions:
+                confirmed = any(ordered[i + 2][0] - ordered[i][0] <= 0.75
+                                for i in range(len(ordered) - 2))
+            else:
+                confirmed = len(obs) >= 3 and len(obs) / total >= 0.25
+            if confirmed:
                 t_m, c_m = max(obs, key=lambda x: x[1])
                 kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
                 self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': kat,
@@ -184,7 +192,9 @@ class Pipeline:
         self.m_belt = _load(WEIGHTS['belt'])
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
         self.m_person = _load(WEIGHTS['person'])   # person -> yolcular (kabin ust ROI)
-        self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: water->su_icme, sigara->sigara_icme
+        self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: yalniz koltuk siniflari
+        self.m_bottle = _load(WEIGHTS['bottle'])   # Harici, tek sinifli bottle modeli
+        self.m_cigarette = _load(WEIGHTS['cigarette'])  # Harici Cigarette nesne modeli
         try:
             import easyocr, torch
             self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
@@ -268,20 +278,53 @@ class Pipeline:
         return len(confs), (max(confs) if confs else 0.0)
 
     def _cabin_objects(self, roi):
-        """Self_v2 HD modeliyle kabin ROI'sinde su/sigara tespiti (kucukse 1280'e buyut)."""
+        """Self_v2 HD modeliyle kabin ROI'sinde koltuk siniflarini bul."""
         if self.m_cabin is None or roi is None or roi.size == 0:
             return {}
         h, w = roi.shape[:2]
         if max(h, w) < 1280:
             s = 1280.0 / max(h, w)
             roi = cv2.resize(roi, (int(w * s), int(h * s)))
-        r = self.m_cabin.predict(roi, verbose=False, conf=0.4)[0]
+        r = self.m_cabin.predict(roi, verbose=False, conf=0.4, imgsz=1280)[0]
         out = {}
         for b in r.boxes:
             name = r.names[int(b.cls)]; c = float(b.conf)
-            if name in ('water', 'sigara', 'on_koltuk_2', 'arka_koltuk') and c > out.get(name, 0):
+            if name in ('on_koltuk_2', 'arka_koltuk') and c > out.get(name, 0):
                 out[name] = c
         return out
+
+    def _roi_object(self, model, roi, target_names, conf):
+        """Genis kabin ROI'sini bolerek kucuk bir hedef nesneyi ara."""
+        if model is None or roi is None or roi.size == 0:
+            return None
+        h, w = roi.shape[:2]
+        split = int(w * 0.62)
+        overlap_start = int(w * 0.38)
+        views = (roi[:, :split], roi[:, overlap_start:]) if w > h else (roi,)
+        target_ids = [i for i, name in model.names.items()
+                      if str(name).lower() in target_names]
+        if not target_ids:
+            return None
+        best = None
+        for view in views:
+            r = model.predict(
+                view, verbose=False, conf=conf, imgsz=1280, classes=target_ids
+            )[0]
+            for b in r.boxes:
+                c = float(b.conf)
+                if best is None or c > best:
+                    best = c
+        return best
+
+    def _bottle(self, roi):
+        return self._roi_object(
+            self.m_bottle, roi, {'bottle', 'water', 'water_bottle'}, conf=0.25
+        )
+
+    def _cigarette(self, roi):
+        return self._roi_object(
+            self.m_cigarette, roi, {'cigarette'}, conf=0.25
+        )
 
     def _belt(self, crop):
         if self.m_belt is None or crop.size == 0:
@@ -329,10 +372,12 @@ class Pipeline:
                 npc, pcf = self._persons(cabin)
                 mem.add_persons(t, npc, pcf)
                 cab = self._cabin_objects(cabin)
-                if 'water' in cab:
-                    mem.add_action('su_icme', t, cab['water'])
-                if 'sigara' in cab:
-                    mem.add_action('sigara_icme', t, cab['sigara'])
+                bottle_conf = self._bottle(cabin)
+                if bottle_conf is not None:
+                    mem.add_action('su_icme', t, bottle_conf)
+                cigarette_conf = self._cigarette(cabin)
+                if cigarette_conf is not None:
+                    mem.add_action('sigara_icme', t, cigarette_conf)
                 if 'on_koltuk_2' in cab:       # on yolcu -> on_koltuk
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
                 if 'arka_koltuk' in cab:       # arka yolcu -> arka_koltuk_1
