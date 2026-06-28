@@ -28,3 +28,5 @@ smoothing.py
 viz.py
 train/
 metrics_log.csv
+weights/bottle_external.pt
+weights/cigarette.pt

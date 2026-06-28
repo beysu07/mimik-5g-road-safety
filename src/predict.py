@@ -15,12 +15,22 @@ WEIGHTS = {
     'action':  os.environ.get('W_ACTION', 'runs/detect/phone_action/weights/best.pt'),
     'person':  os.environ.get('W_PERSON', 'runs/detect/phone_merged/weights/best.pt'),
     'cabin':   os.environ.get('W_CABIN', 'runs/detect/self_actions_hd/weights/best.pt'),
-    'bottle':  os.environ.get('W_BOTTLE', 'runs/detect/bottle_external/weights/best.pt'),
-    'cigarette': os.environ.get('W_CIGARETTE', 'runs/detect/cigarette/weights/best.pt'),
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
 TARGET_FPS = 8
+
+# FTR sema guvencesi: cikti YALNIZ bu degerleri icerebilir (ASCII kucuk harf, birebir).
+VALID_TIP = {'sedan', 'suv', 'hatchback', 'pickup', 'minibus', 'panelvan', 'kamyon'}
+VALID_RENK = {'beyaz', 'siyah', 'gri', 'kirmizi', 'mavi', 'sari',
+              'yesil', 'turuncu', 'kahverengi'}
+VALID_LABELS = {
+    'sofor_eylemi': {'arkaya_bakma', 'esneme', 'sigara_icme', 'su_icme',
+                     'telefonla_konusma', 'slalom', 'etrafa_bakinma',
+                     'emniyet_kemeri_ihlali'},
+    'nesneler': {'teknocan', 'bilgisayar'},
+    'yolcular': {'arka_koltuk_1', 'arka_koltuk_2', 'on_koltuk'},
+}
 
 
 def _load(path):
@@ -146,8 +156,8 @@ class VehiclePassMemory:
         """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
         total = max(1, len(self.track))
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
-        # Jenerik nesne modelleri (sigara/su) gurultulu -> SUREKLILIK iste (patlama degil)
-        ratios = {'su_icme': 0.35, 'sigara_icme': 0.50, 'telefonla_konusma': 0.15}
+        # telefonla_konusma sik gorunur -> dusuk oran; yolcular icin varsayilan 0.25 kalicilik.
+        ratios = {'telefonla_konusma': 0.15}
         for etiket, obs in self.action_obs.items():
             min_ratio = ratios.get(etiket, 0.25)
             confirmed = len(obs) >= 3 and len(obs) / total >= min_ratio
@@ -165,15 +175,22 @@ class VehiclePassMemory:
         plaka, pconf = self._fuse_plate()
         comps = [x for x in (tconf, rconf, pconf) if x > 0]
         score = round(float(np.mean(comps)), 2) if comps else 0.0
+        # Sema guvencesi: gecersiz tip/renk varsayilana duser, sema-disi tespit elenir.
+        if tip not in VALID_TIP:
+            tip = 'sedan'
+        if renk not in VALID_RENK:
+            renk = 'gri'
+        tespitler = [e for e in self.events
+                     if e['etiket'] in VALID_LABELS.get(e['kategori'], ())]
         return {
             'video_id': video_id,
             'arac_bilgisi': {
-                'tip': tip or 'sedan',
+                'tip': tip,
                 'plaka': plaka or 'tespit edilemedi',
-                'renk': renk or 'gri',
+                'renk': renk,
                 'confidence_score': score,
             },
-            'tespitler': sorted(self.events, key=lambda e: e['zaman_saniye']),
+            'tespitler': sorted(tespitler, key=lambda e: e['zaman_saniye']),
         }
 
 
@@ -190,8 +207,6 @@ class Pipeline:
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
         self.m_person = _load(WEIGHTS['person'])   # person -> yolcular (kabin ust ROI)
         self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: yalniz koltuk siniflari
-        self.m_bottle = _load(WEIGHTS['bottle'])   # Harici, tek sinifli bottle modeli
-        self.m_cigarette = _load(WEIGHTS['cigarette'])  # Harici Cigarette nesne modeli
         try:
             import easyocr, torch
             self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
@@ -290,39 +305,6 @@ class Pipeline:
                 out[name] = c
         return out
 
-    def _roi_object(self, model, roi, target_names, conf):
-        """Genis kabin ROI'sini bolerek kucuk bir hedef nesneyi ara."""
-        if model is None or roi is None or roi.size == 0:
-            return None
-        h, w = roi.shape[:2]
-        split = int(w * 0.62)
-        overlap_start = int(w * 0.38)
-        views = (roi[:, :split], roi[:, overlap_start:]) if w > h else (roi,)
-        target_ids = [i for i, name in model.names.items()
-                      if str(name).lower() in target_names]
-        if not target_ids:
-            return None
-        best = None
-        for view in views:
-            r = model.predict(
-                view, verbose=False, conf=conf, imgsz=1280, classes=target_ids
-            )[0]
-            for b in r.boxes:
-                c = float(b.conf)
-                if best is None or c > best:
-                    best = c
-        return best
-
-    def _bottle(self, roi):
-        return self._roi_object(
-            self.m_bottle, roi, {'bottle', 'water', 'water_bottle'}, conf=0.40
-        )
-
-    def _cigarette(self, roi):
-        return self._roi_object(
-            self.m_cigarette, roi, {'cigarette'}, conf=0.55
-        )
-
     def _belt(self, crop):
         if self.m_belt is None or crop.size == 0:
             return None
@@ -369,11 +351,9 @@ class Pipeline:
                 npc, pcf = self._persons(cabin)
                 mem.add_persons(t, npc, pcf)
                 cab = self._cabin_objects(cabin)
-                # su_icme + sigara_icme devre disi: jenerik modeller eval (TOGG) dagiliminda
-                # gercekle AYNI guvende yanlis-pozitif veriyor (veri yetersizligi) -> guvenilmez.
-                if 'on_koltuk_2' in cab:       # on yolcu -> on_koltuk
+                if 'on_koltuk_2' in cab:       # Self_v2 on yolcu -> sema 'on_koltuk'
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
-                if 'arka_koltuk' in cab:       # arka yolcu -> arka_koltuk_1
+                if 'arka_koltuk' in cab:       # Self_v2 arka yolcu -> sema 'arka_koltuk_1'
                     mem.add_action('arka_koltuk_1', t, cab['arka_koltuk'])
                 lab, c = self._cls(self.m_type, crop); mem.vote_type(lab, c)
                 lab, c = self._cls(self.m_color, crop); mem.vote_color(lab, c)
