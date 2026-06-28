@@ -40,7 +40,9 @@ Tüm sınıf etiketleri şartnameyle birebir, ASCII ve küçük harfli standart 
 | Araç tipi | CompCars (5 gövde tipi) | ~13.700 / ~2.400 |
 | Kemer + ön cam ROI | NoSeatbelt (Roboflow) | 933 / 138 / 120 |
 | Telefon/kemer (dış-cam) | seat_belt-and-mobile ×2 (birleşik) | 4763 / 1203 |
-| **Kendi verimiz (su/yolcu/telefon)** | **Self_v2 — iPhone 2K, dış açı** | 96 / 16 |
+| **Kendi verimiz (yolcu konumları)** | **Self_v2 — iPhone 2K, dış açı** | 96 / 16 |
+| Sigara nesne dedektörü | Cigarette (genel set) | 5346 / 318 |
+| Su şişesi nesne dedektörü | harici bottle seti | — |
 
 **Etiketleme ve dengeleme.** Açık kümeler kendi şemalarıyla geldiğinden ana iş, sınıf
 adlarının şartname etiketlerine eşlenmesi ve domain-uygunluk açısından ayıklanmasıdır.
@@ -138,6 +140,7 @@ Her model, eğitimde görülmeyen **ayrık test bölmeleri** üzerinde değerlen
 | Yolcu/kişi (`person`) | mAP@0.5 = **0.851** |
 | Kendi veri — su (`water`, 1280) | mAP@0.5 = **0.995** |
 | Kendi veri — ön yolcu (`on_koltuk`) | mAP@0.5 = **0.995** |
+| Sigara dedektörü (`Cigarette`, kendi val) | mAP@0.5 = **0.859** (çapraz-domain ~%59) |
 
 **Uçtan uca doğrulama.** Sistem; örnek (4K, karanlık) ve kendi (iPhone 2K, gündüz)
 videolarımız dahil **beş farklı araçta** uçtan uca çalıştırılmış, her birinde geçerli
@@ -153,9 +156,19 @@ Araç Geçiş Hafızası + kalıcılık filtresi sayesinde sistem yanlış-pozit
 çözünürlük deneyimiz ise küçük-nesne tespitinde veri kalitesinin rolünü nicel olarak ortaya
 koymaktadır.
 
-**Dürüst kapsam.** `sigara` etiketi (en küçük nesne) ve esneme dış kameradan güvenilir
-tespit edilememekte; bu sınır ticari sistemlerde de mevcuttur ve domain-eşleşmeli daha çok
-veriyle iyileştirilmesi planlanmaktadır.
+**Sigara ve su (nesne-tabanlı yaklaşım).** `sigara_icme` ve `su_icme`, eylemi doğrudan
+sınıflandırmak yerine kabin ROI'si üzerinde çalışan **adanmış nesne dedektörleriyle**
+(sigara, su şişesi) tespit edilir — "nesne varsa eylem var" ilkesi. Önemli bir metodolojik
+bulgu: COCO 'bottle' sınıfı, ön-camdan görülen şişeyi tam çözünürlükte bile tanıyamadı
+(0/15); bu nedenle adanmış dedektörler eğitildi. Sigara dedektörü **genel bir sigara
+kümesiyle (5346 görüntü) eğitilip kendi domain karelerimizde sınanmıştır** (çapraz-domain
+genelleme ~%59 yakalama) — yani aynı dağılıma ezberlemeyip gerçekten genellemektedir.
+Entegre hatta gerçek videolarda hem `sigara_icme` (~0.73) hem `su_icme` (~0.56)
+tetiklenmiştir. Araç Geçiş Hafızası'ndaki kalıcılık filtresi yanlış-pozitifleri sınırlar.
+
+**Dürüst kapsam.** Esneme (yüz detayı) ve `teknocan` (özel veri yok) dış kamera açısından
+güvenilir tespit edilememekte olup domain-eşleşmeli daha fazla veriyle iyileştirilmesi
+planlanmaktadır.
 
 ---
 
