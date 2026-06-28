@@ -13,7 +13,6 @@ WEIGHTS = {
     'plate':   os.environ.get('W_PLATE', 'runs/detect/plate/weights/best.pt'),
     'belt':    os.environ.get('W_BELT',  'runs/detect/seatbelt/weights/best.pt'),
     'action':  os.environ.get('W_ACTION', 'runs/detect/phone_action/weights/best.pt'),
-    'person':  os.environ.get('W_PERSON', 'runs/detect/phone_merged/weights/best.pt'),
     'cabin':   os.environ.get('W_CABIN', 'runs/detect/self_actions_hd/weights/best.pt'),
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
@@ -53,7 +52,6 @@ class VehiclePassMemory:
         self.color_votes = Counter(); self.color_conf = defaultdict(list)
         self.plate_reads = []          # (metin, ocr_guven)
         self.track = []                # (t, cx, genislik) - arac yorungesi
-        self.person_obs = []           # (t, kisi_sayisi, max_guven) - yolcular
         self.action_obs = defaultdict(list)   # etiket -> [(t, conf)] - kalicilik icin
         self.events = []               # tespitler
         self._last = {}                # etiket -> son zaman (dedup)
@@ -73,10 +71,6 @@ class VehiclePassMemory:
     def add_track(self, t, box):
         x1, y1, x2, y2 = box
         self.track.append((t, (x1 + x2) / 2.0, max(1.0, x2 - x1)))
-
-    def add_persons(self, t, count, conf):
-        if count > 0:
-            self.person_obs.append((t, count, conf))
 
     def add_action(self, etiket, t, conf):
         self.action_obs[etiket].append((t, conf))
@@ -135,23 +129,6 @@ class VehiclePassMemory:
             t = round(self.track[len(self.track) // 2][0], 1)
             self.add_event(t, 'sofor_eylemi', 'slalom', min(0.9, 0.5 + 0.1 * rev), gap=0)
 
-    def _emit_passengers(self):
-        """Yolcuyu MAX degil KALICILIK ile belirle: ek yolcu, gorunur karelerin en az
-        %40'inda tutarli gorulmeli (yansima/koltuk basligi hayaletini eler)."""
-        if not self.person_obs:
-            return
-        total = len(self.person_obs)
-        seats = ['on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2']
-        for i, seat in enumerate(seats):
-            need = i + 2                        # on_koltuk->2 kisi, arka_1->3, arka_2->4
-            frames = [(t, conf) for (t, c, conf) in self.person_obs if c >= need]
-            if len(frames) >= 3 and len(frames) / total >= 0.40:
-                t_m, conf_m = max(frames, key=lambda x: x[1])
-                self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': 'yolcular',
-                                    'etiket': seat, 'confidence_score': round(conf_m, 2)})
-            else:
-                break                          # ust koltuk dolu degilse alttakiler de degil
-
     def _emit_actions(self):
         """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
         total = max(1, len(self.track))
@@ -205,8 +182,7 @@ class Pipeline:
         self.m_plate = _load(WEIGHTS['plate'])
         self.m_belt = _load(WEIGHTS['belt'])
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
-        self.m_person = _load(WEIGHTS['person'])   # person -> yolcular (kabin ust ROI)
-        self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: yalniz koltuk siniflari
+        self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: yolcu koltuk siniflari
         try:
             import easyocr, torch
             self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
@@ -281,14 +257,6 @@ class Pipeline:
                     best = c
         return best
 
-    def _persons(self, roi):
-        """Kabin ust ROI'sinde guvenli (>=0.4) kisi sayisi + max guven."""
-        if self.m_person is None or roi is None or roi.size == 0:
-            return 0, 0.0
-        r = self.m_person.predict(roi, verbose=False, conf=0.45)[0]
-        confs = [float(b.conf) for b in r.boxes if r.names[int(b.cls)] == 'person']
-        return len(confs), (max(confs) if confs else 0.0)
-
     def _cabin_objects(self, roi):
         """Self_v2 HD modeliyle kabin ROI'sinde koltuk siniflarini bul."""
         if self.m_cabin is None or roi is None or roi.size == 0:
@@ -348,8 +316,6 @@ class Pipeline:
                 x1, y1, x2, y2 = vbox
                 crop = frame[y1:y2, x1:x2]
                 cabin = crop[0:int(crop.shape[0] * 0.65), :]   # arabanin ust kabin (greenhouse)
-                npc, pcf = self._persons(cabin)
-                mem.add_persons(t, npc, pcf)
                 cab = self._cabin_objects(cabin)
                 if 'on_koltuk_2' in cab:       # Self_v2 on yolcu -> sema 'on_koltuk'
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])

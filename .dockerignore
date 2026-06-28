@@ -30,3 +30,4 @@ train/
 metrics_log.csv
 weights/bottle_external.pt
 weights/cigarette.pt
+weights/phone_merged.pt

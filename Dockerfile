@@ -28,7 +28,6 @@ ENV W_VEHICLE=/app/weights/yolo11s.pt \
     W_PLATE=/app/weights/plate.pt \
     W_BELT=/app/weights/seatbelt.pt \
     W_ACTION=/app/weights/phone_action.pt \
-    W_PERSON=/app/weights/phone_merged.pt \
     W_CABIN=/app/weights/self_actions_hd.pt
 
 # /app/data/input/video.mp4 -> /app/data/output/results.json
