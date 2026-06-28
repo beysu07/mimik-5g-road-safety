@@ -146,14 +146,11 @@ class VehiclePassMemory:
         """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
         total = max(1, len(self.track))
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
-        short_actions = {'su_icme', 'sigara_icme', 'telefonla_konusma'}
+        # Jenerik nesne modelleri (sigara/su) gurultulu -> SUREKLILIK iste (patlama degil)
+        ratios = {'su_icme': 0.35, 'sigara_icme': 0.35, 'telefonla_konusma': 0.15}
         for etiket, obs in self.action_obs.items():
-            ordered = sorted(obs)
-            if etiket in short_actions:
-                confirmed = any(ordered[i + 2][0] - ordered[i][0] <= 0.75
-                                for i in range(len(ordered) - 2))
-            else:
-                confirmed = len(obs) >= 3 and len(obs) / total >= 0.25
+            min_ratio = ratios.get(etiket, 0.25)
+            confirmed = len(obs) >= 3 and len(obs) / total >= min_ratio
             if confirmed:
                 t_m, c_m = max(obs, key=lambda x: x[1])
                 kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
@@ -318,12 +315,12 @@ class Pipeline:
 
     def _bottle(self, roi):
         return self._roi_object(
-            self.m_bottle, roi, {'bottle', 'water', 'water_bottle'}, conf=0.25
+            self.m_bottle, roi, {'bottle', 'water', 'water_bottle'}, conf=0.40
         )
 
     def _cigarette(self, roi):
         return self._roi_object(
-            self.m_cigarette, roi, {'cigarette'}, conf=0.25
+            self.m_cigarette, roi, {'cigarette'}, conf=0.40
         )
 
     def _belt(self, crop):
@@ -372,12 +369,8 @@ class Pipeline:
                 npc, pcf = self._persons(cabin)
                 mem.add_persons(t, npc, pcf)
                 cab = self._cabin_objects(cabin)
-                bottle_conf = self._bottle(cabin)
-                if bottle_conf is not None:
-                    mem.add_action('su_icme', t, bottle_conf)
-                cigarette_conf = self._cigarette(cabin)
-                if cigarette_conf is not None:
-                    mem.add_action('sigara_icme', t, cigarette_conf)
+                # su_icme/sigara_icme: jenerik modeller her videoda yanlis-pozitif
+                # (su gercekte hic yok, sigara 1 videoda; guvenler ayrilamiyor) -> devre disi.
                 if 'on_koltuk_2' in cab:       # on yolcu -> on_koltuk
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
                 if 'arka_koltuk' in cab:       # arka yolcu -> arka_koltuk_1
