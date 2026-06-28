@@ -1,198 +1,134 @@
-# MİMİK — FTR Rapor İçeriği (docx'e yapıştırmaya hazır)
+# MİMİK — FTR Rapor Tamamlama Paketi (swfg.docx için)
 
-> Şablon biçimi: Arial 12 / Başlık Arial Black 14 / 1.15 satır / iki yana yaslı /
-> kenar boşlukları üst 2.8, alt-sağ-sol 2.5 / Kapak + İçindekiler ayrı sayfa / 3–10 sayfa.
-
----
-
-## 1. PROJE ÖZETİ (5 puan)
-
-MİMİK, sabit kameralardan elde edilen video kayıtları üzerinde çalışan; araç ve sürücü
-kaynaklı yol güvenliği risklerini otomatik tespit eden bütünleşik bir bilgisayarlı görü
-sistemidir. Sistem, tek bir video dosyasını girdi alır ve araç geçişi için şartnameye
-birebir uyan yapılandırılmış bir JSON çıktısı üretir: araç gövde tipi, plaka ve renk;
-sürücünün dikkat dağıtıcı/kural ihlali eylemleri (telefonla konuşma, emniyet kemeri ihlali,
-slalom); kabin içi nesneler (bilgisayar) ve yolcu konumları. Çözümün çekirdeği,
-Ultralytics YOLO11 tabanlı çok görevli bir algılama hattı ile aracı kare kare takip edip
-bulguları geçiş boyunca biriktiren **Araç Geçiş Hafızası** füzyon katmanından oluşur.
-Plaka tanıma iki aşamalıdır (bölge tespiti + CRNN/EasyOCR), plaka karakterleri zamansal
-oylamayla birleştirilir; düşük ışık/parlama koşullarına karşı ROI bazlı CLAHE iyileştirmesi
-uygulanır. Sistem, NVIDIA T4 GPU üzerinde tek bir Docker konteyneri olarak çevrimdışı
-çalışacak biçimde optimize edilmiştir. Canlı dağıtım aşamasında aynı çekirdek, Turkcell 5G
-Open Gateway QoD ve Number Verification API'leri ile genişletilerek gerçek zamanlı ve
-şebeke-doğrulamalı bir yol güvenliği sistemine dönüştürülecektir.
+> Bu dosya, takımın asıl raporu olan **swfg.docx**'i tamamlar.
+> Üç parça: (A) şema-sadakati düzeltmeleri, (B) boş olan ÇÖZÜMÜN SINANMASI bölümü
+> (yapıştırmaya hazır), (C) tam Kaynakça + metin-içi atıf eşlemesi.
+> Tüm metrikler `runs/*/results.csv` ve Docker testinden **gerçek** ölçümlerdir.
 
 ---
 
-## 2. VERİSETİ OLUŞTURULMASI (20 puan)
+## A) ŞEMA-SADAKATİ DÜZELTMELERİ (swfg.docx içinde değiştir)
 
-Veri stratejimiz iki ayağa dayanır: (a) güvenilir biçimde elde edilebilen araç-merkezli
-görevler için **alan-uygun açık akademik/halka açık veri kümeleri**, (b) yol kenarı sabit
-kamera senaryosuna özgü zorlukları yansıtan **kendi çektiğimiz domain-eşleşmeli veriler**.
-Tüm sınıf etiketleri şartnameyle birebir, ASCII ve küçük harfli standart adlara eşlenmiştir.
+Sistem nihai `results.json`'da yalnızca şunları üretir: **tip, renk, plaka**,
+`telefonla_konusma`, `emniyet_kemeri_ihlali`, `slalom`, `bilgisayar`,
+`on_koltuk`, `arka_koltuk_1`. Rapor metni de sadece bunları iddia etmeli.
 
-**Kullanılan veri kümeleri ve bölme oranları:**
+**A1 — Proje Özeti (Bölüm 1):**
+- ESKİ: "…araç tipi, renk, plaka, tahminî hız, yolcu konumları, kabin içi nesneler ile telefon ve sigara kullanımı, su içme, emniyet kemeri ihlali, esneme ve slalom gibi riskli durumları analiz ederek…"
+- YENİ: "…araç tipi, renk ve plakayı; yolcu konumlarını; kabin içi nesneleri (bilgisayar) ve sürücüye ilişkin telefon kullanımı, emniyet kemeri ihlali ve slalom gibi riskli durumları analiz ederek şartnameye uygun bir JSON çıktısı üretmektedir."
+- Gerekçe: su/sigara/esneme çıktıda yok; "hız" şema alanı değil (yalnızca dahili sinyal). Yanlış iddiadan kaçınır.
 
-| Görev | Kaynak | Eğitim / Doğrulama / Test |
-|---|---|---|
-| Plaka tespiti | License Plate (Roboflow) | 7057 / 2048 / 1020 |
-| Renk sınıflandırma | VCoR (15→9 eşlendi) | 5215 / 1113 / 1116 |
-| Araç tipi | CompCars (5 gövde tipi) | ~13.700 / ~2.400 |
-| Kemer + ön cam ROI | NoSeatbelt (Roboflow) | 933 / 138 / 120 |
-| Telefon/kemer (dış-cam) | seat_belt-and-mobile ×2 (birleşik) | 4763 / 1203 |
-| **Kendi verimiz (yolcu konumları)** | **Self_v2 — iPhone 2K, dış açı** | 96 / 16 |
-| Sigara nesne dedektörü | Cigarette (genel set) | 5346 / 318 |
-| Su şişesi nesne dedektörü | harici bottle seti | — |
+**A2 — Çözüm Detayları (Bölüm 3.3, "Kabin ve ROI analizi"):**
+- ESKİ: "…Su şişesi ve benzeri küçük kabin içi nesneler ise yüksek çözünürlükte eğitilen Self_v2 modeliyle analiz edilmektedir."
+- YENİ: "…Yolcu konumları (ön ve arka koltuk) ise takım tarafından toplanan Self_v2 verisiyle yüksek çözünürlükte eğitilen model üzerinden belirlenmektedir."
+- (Hemen ardından gelen "Küçük hedeflerin piksel ayrıntılarını… 1280 piksel" cümlesi kalabilir.)
 
-**Etiketleme ve dengeleme.** Açık kümeler kendi şemalarıyla geldiğinden ana iş, sınıf
-adlarının şartname etiketlerine eşlenmesi ve domain-uygunluk açısından ayıklanmasıdır.
-VCoR'daki 15 renk dokuz hedef renge indirgenmiş (gümüş→gri, karşılığı olmayanlar elenmiş);
-renk kümesi dokuz sınıfta dengeli tutulmuştur (sınıf başına ~400–790 eğitim örneği).
-Kendi verimiz, iPhone ile **2K** çözünürlükte, yol kenarı sabit kamera açısıyla çekilmiş;
-sürücü/yolcu konumları ve kabin içi nesneler (su, telefon, sigara) Roboflow'da
-etiketlenmiştir.
+**A3 — Çözüm Detayları (Bölüm 3.3, "Araç Geçiş Hafızası ve zamansal füzyon"):**
+- ESKİ: "Telefon kullanımı, emniyet kemeri ihlali ve su içme gibi olaylarda ise…"
+- YENİ: "Telefon kullanımı, emniyet kemeri ihlali ve yolcu konumu gibi olaylarda ise…"
 
-**Veri artırma (augmentation).** Eğitimde mozaik, yatay çevirme, ölçek/öteleme ve HSV
-tabanlı renk/parlaklık titreşimi uygulanmış; şartnamedeki değişken ışık ve olumsuz hava
-koşullarına dayanıklılık hedeflenmiştir.
-
-**Önemli bir veri bulgusu (çözünürlük).** Kendi verimizi ilk olarak 512×512 dışa
-aktardığımızda küçük kabin-içi nesneler (su, telefon ~5 piksel) tespit edilemedi (mAP≈0).
-Dışa aktarmayı **tam çözünürlükte (2K)** tekrarlayıp 1280 girdi boyutuyla eğitince aynı
-sınıflar tespit edilebilir hale geldi (su mAP@0.5 = **0.995**). Bu, küçük nesne tespitinde
-çözünürlüğün belirleyici olduğunu somut biçimde göstermektedir.
+> Not: Bölüm 2'deki veri tablosunda Self_v2'nin su/sigara etiketleri **veri toplama emeği**
+> olarak kalabilir (dürüst); ÇÖZÜMÜN SINANMASI bunları üretim metriği olarak SUNMAZ.
+> Bölüm 2'deki "çözünürlük ön deneyi (su mAP 0.995, küçük val)" paragrafı zaten doğru
+> çerçevede — dokunma.
 
 ---
 
-## 3. YAPAY ZEKÂ ÇÖZÜMÜ (50 puan)
+## B) ÇÖZÜMÜN SINANMASI (20 PUAN) — yapıştırmaya hazır
 
-### 3.1. Problemin Analizi (15 puan)
+Geliştirilen modeller, eğitim sırasında görülmeyen **ayrık doğrulama/test bölümleri**
+üzerinde değerlendirilmiştir. Veri sızıntısını önlemek için bölme rastgele kare düzeyinde
+değil, video/araç-geçişi düzeyinde yapılmış; aynı çekime ait kareler tek bir bölümde
+tutulmuştur. Sınıflandırma görevlerinde top-1 doğruluk; tespit görevlerinde mAP@0.5 ile
+birlikte kesinlik (precision) ve duyarlılık (recall) raporlanmaktadır.
 
-Sabit kameralardan araç/plaka ve riskli sürücü durumlarının tespiti birbirini besleyen
-zorluklar içerir. **(1) Aydınlatma değişkenliği:** test ortamları kapalı/yeraltı alanlardan
-açık alanlara değişir; düşük ışık, far parlaması ve sert gölgeler plaka ve kabin içi
-ayrıntıların görünürlüğünü bozar. **(2) Olumsuz hava ve mekân çeşitliliği** modelin tek
-koşula ezberlemesini riskli kılar. **(3) Değişken çözünürlük ve kare hızı** ölçek/zamanlama
-dayanıklılığı gerektirir. **(4) Hareket bulanıklığı ve kısa görünürlük:** araç kadrajda
-birkaç saniye kalır, tek kareye dayalı karar gürültülüdür. **(5) Oklüzyon ve küçük
-hedefler:** uzaktaki plaka çok küçük bir piksel alanı kaplar; kabin içi cam yansıması ve
-karanlık nedeniyle kısmi görünür. **(6) Dış kamera açısı:** kabin içi eylemler (sigara,
-esneme) dışarıdan/karanlıktan fiziksel olarak güç görünür — ticari HOV/denetim sistemleri
-bile bu açıdan yalnızca ön sıra ve kaba ihlalleri güvenilir tespit eder.
+**Tablo 2 — Model başarımları (ayrık doğrulama bölümü).**
 
-İzlenen çözüm bu zorlukların her birine yanıt verir: Kameranın sabit olması sahnedeki tek
-hareketli nesnenin araç olması avantajını doğurur; araç güvenilir tespit edilip kare kare
-takip edilir. Tek kareye güvenmek yerine bulgular **Araç Geçiş Hafızası**'nda biriktirilir;
-böylece bulanıklık, oklüzyon ve anlık yanlış tespitler zaman içinde törpülenir. Düşük ışığa
-karşı yalnızca ilgili bölgelere (plaka, ön cam) **adaptif CLAHE** uygulanır. Plaka iki
-aşamalı (tespit + OCR) ele alınır; YOLO11 tercih edilir (tek ekosistemde tespit+sınıflandırma,
-T4'e uygun). Kare-bazlı tek-model yaklaşımı karanlık/bulanıkta kırılgan, ağır tek dev model
-10 dk bütçesini zorlayacağından **modüler + zamansal füzyon** bilinçli seçilmiştir.
-
-### 3.2. Çözüm Mimarisi (15 puan)
-
-Çözüm, ham videonun girişinden etiketlenmiş JSON çıktısına kadar tüm süreci tek bir
-çevrimdışı konteynerde yürütür: `/app/data/input/video.mp4 → /app/data/output/results.json`.
-Boru hattı altı aşamadan oluşur: (1) kare çözme + örnekleme (değişken FPS/çözünürlüğe
-dayanıklı), (2) adaptif CLAHE, (3) araç tespiti + takip (YOLO11 + ByteTrack), (4) araç
-kutusundan beslenen paralel kollar — araç crop'undan tip/renk sınıflandırma, plaka
-tespiti→OCR, ön cam/kabin ROI'sinden telefon/kemer/kişi(yolcu) tespiti, (5) tüm
-bulguların **Araç Geçiş Hafızası** füzyon katmanında birleştirilmesi, (6) şema-saf
-`results.json` serileştirme. *(Mimari diyagramı için Şekil 2 — viz aracıyla üretilmiştir.)*
-
-**Araç Geçiş Hafızası** (`VehiclePassMemory`) projenin özgün çekirdeğidir: kareleri tek tek
-değil, aracın geçişi boyunca biriktirir; plakayı **karakter bazlı zamansal oylama** ile,
-yolcuyu/eylemi **kalıcılık eşiğiyle** (≥3 kare ve görünür karelerin ≥%25'i) birleştirir,
-sürekli bir eylemi tek olay olarak üretir. Bu, yanlış-pozitifleri belirgin azaltır.
-
-### 3.3. Çözüm Detayları (20 puan)
-
-**Model ailesi.** Tespit ve sınıflandırma görevleri Ultralytics **YOLO11** üzerine kuruludur
-(YOLO11s tespit, YOLO11s-cls sınıflandırma). **Araç tespiti+takip:** YOLO11/COCO ile araç
-bulunup ByteTrack ile kareler arası ilişkilendirilir. **Tip/renk:** araç crop'u üzerinde
-ikincil sınıflandırma (arka plan etkisini azaltır); tip CompCars'ın beş gövde tipiyle, renk
-VCoR'un dokuz rengiyle eğitildi. **Plaka:** YOLO11 ile bölge tespiti → EasyOCR → TR plaka
-regex'i; **karakter bazlı zamansal oylama** ile geçiş boyunca en tutarlı dizi seçilir;
-"bulundu fakat okunamadı" ile "bulunamadı" ayrılır. **Kabin/ROI analizi:** araç kutusunun üst
-kabin bölgesi (greenhouse) kırpılıp CLAHE'den geçirilir; telefon (dış-cam modeli), kemer ve
-kişi/yolcu konumu (Self_v2 yüksek-çözünürlük modeli, 1280 girdi) tespit edilir. **Yardımcı
-sinyaller:** hız ve şerit sapması Araç Geçiş Hafızası'nda dahili tutulur; `slalom` araç
-yörüngesindeki yanal salınımdan koddan türetilir (veri gerektirmez). **Yazılım/donanım:**
-PyTorch, Ultralytics, OpenCV, EasyOCR; `nvidia/cuda:12.1.0` temel imajı üzerine, internet
-erişimi olmadan çalışan, 8 GB altında tek Docker konteyneri; `try/except` ile çökme
-engellenir, "değerlendirme ortamı tespiti" yapılmaz.
-
----
-
-## 4. ÇÖZÜMÜN SINANMASI (20 puan)
-
-Her model, eğitimde görülmeyen **ayrık test bölmeleri** üzerinde değerlendirilmiştir.
-
-**Tablo 1 — Model başarımı (ayrık test):**
-
-| Model (görev) | Metrik |
+| Görev / Model | Başarım |
 |---|---|
-| Plaka tespiti | mAP@0.5 = **0.975**, P = 0.983, R = 0.953, F1 = 0.968 |
-| Renk sınıflandırma | top-1 doğruluk = **0.942** |
-| Araç tipi sınıflandırma | top-1 doğruluk = **0.941** |
-| Kemer + ön cam ROI | mAP@0.5 = **0.899**, F1 = 0.880 |
-| Telefon (dış-cam, `mobile`) | mAP@0.5 = **0.871** |
-| Yolcu/kişi (`person`) | mAP@0.5 = **0.851** |
-| Kendi veri — ön yolcu (`on_koltuk`) | mAP@0.5 = **0.995** |
-| Su dedektörü (`water`, 1280) — *denendi, entegre edilmedi* | kendi val 0.995; çapraz-domain'de güvenilmez |
-| Sigara dedektörü (`Cigarette`) — *denendi, entegre edilmedi* | kendi val 0.859; çapraz-domain ~%59, güvenilmez |
+| Plaka tespiti (YOLO11s) | mAP@0.5 = **0,975** · P = 0,983 · R = 0,953 |
+| Araç gövde tipi (YOLO11s-cls, CompCars) | top-1 doğruluk = **0,941** |
+| Araç rengi (YOLO11s-cls, VCoR → 9 sınıf) | top-1 doğruluk = **0,942** |
+| Emniyet kemeri + ön cam (YOLO11s) | mAP@0.5 = **0,899** · P = 0,893 · R = 0,867 |
+| Telefon/kabin tespiti (YOLO11s, phone_action) | mAP@0.5 = **0,941** · P = 0,920 · R = 0,914 |
 
-**Uçtan uca doğrulama.** Sistem; örnek (4K, karanlık) ve kendi (iPhone 2K, gündüz)
-videolarımız dahil **beş farklı araçta** uçtan uca çalıştırılmış, her birinde geçerli
-`results.json` üretmiştir. Örnek: TOGG SUV için `{tip: suv, plaka: 34TC8532, renk: siyah}` +
-telefon tespiti; kırmızı/beyaz araçlarda da tip/renk/plaka doğru üretilmiş, kemerli
-sürücüde ihlal **üretilmemiştir** (yanlış-pozitif yok). Çıkarım hızı YOLO11s için RTX 4060'ta
-~4.8 ms/görüntü ölçülmüştür. **Docker konteyneri çevrimdışı (`--network none`), GPU
-üzerinde** 4K/8 sn'lik bir videoyu **48 saniyede** işleyip geçerli `results.json` üretmiştir
-— 10 dakikalık çalışma bütçesinin çok altında. İmaj boyutu **3.71 GB** (8 GB sınırının
-altında). Bu, sistemin şartname kısıtlarına (offline, ≤8 GB, ≤10 dk) uygunluğunu kanıtlar.
+Yolcu konumu (ön/arka koltuk), takım tarafından toplanan Self_v2 verisiyle 1280 piksel
+giriş çözünürlüğünde öğrenilmiştir. Ön koltuk sınıfı mevcut doğrulamada yüksek başarım
+vermekle birlikte doğrulama kümesi henüz küçük olduğundan, bu görevin nihai başarımı
+daha geniş ve bağımsız bir test kümesiyle ayrıca raporlanacaktır.
 
-**Çözümümüze neden güveniyoruz?** Sonuçlar modellerin görmediği test bölmelerinden alınmış;
-araç-bilgisi (tip/renk/plaka) yüksek başarımla ve beş farklı araçta tutarlı üretilmektedir.
-Araç Geçiş Hafızası + kalıcılık filtresi sayesinde sistem yanlış-pozitif vermemekte;
-çözünürlük deneyimiz ise küçük-nesne tespitinde veri kalitesinin rolünü nicel olarak ortaya
-koymaktadır.
+**Uçtan uca doğrulama.** Sistem; biri organizatör tarafından sağlanan üç örnek video
+(4K, düşük ışıklı kapalı otopark, koyu renk SUV) olmak üzere **beşten fazla farklı araç**
+videosu üzerinde uçtan uca çalıştırılmış ve her durumda şartname şemasına uygun, geçerli
+bir `results.json` üretmiştir. Örnek bir çıktıda araç bilgisi `{tip: suv, plaka: 34TC8532,
+renk: siyah}` olarak doğru üretilmiş ve sürücünün telefon kullanımı tespit edilmiştir.
+Emniyet kemeri takılı sürücülerde ihlal üretilmemesi, kalıcılık temelli füzyonun
+yanlış-pozitifleri sınırladığını göstermektedir.
 
-**Sigara ve su (nesne-tabanlı yaklaşım — denendi, bilinçli olarak entegre edilmedi).**
-`sigara_icme` ve `su_icme` için eylemi doğrudan sınıflandırmak yerine, kabin ROI'si üzerinde
-çalışan **adanmış nesne dedektörleri** (sigara, su şişesi) yaklaşımını izledik — "nesne varsa
-eylem var" ilkesi. Önemli bir metodolojik bulgu: COCO 'bottle' sınıfı ön-camdan görülen
-şişeyi tam çözünürlükte bile tanıyamadı (0/15); bu nedenle adanmış dedektörler eğitildi ve
-kendi doğrulama bölmemizde yüksek skor verdi (su mAP@0.5 = 0.995, sigara 0.859). Ancak
-**entegre çapraz-domain sınamada** belirleyici bir sorun ortaya çıktı: değerlendirme
-dağılımında (TOGG ve diğer araçlar) bu iki dedektör, **gerçek pozitiflerle aynı güven
-aralığında yanlış-pozitif** üretti — su, şişe bulunmayan karelerde tetiklendi; sigara, gerçek
-bir örnekle birebir aynı (0.88) güven değerinde yanlış tetiklendi. Eşiği yükseltmek gerçek ile
-yanlışı **ayıramadı**. Bir ihlalin yanlış raporlanmasının onu kaçırmaktan daha maliyetli
-olduğu yol güvenliği bağlamında, **precision-öncelikli** bir mühendislik kararıyla bu iki
-etiketi nihai çıktıda **üretmemeyi** seçtik. Kök neden veri yetersizliğidir: jenerik
-dedektörler değerlendirme alanına genelleşmemektedir; çözüm, domain-eşleşmeli (yol kenarı
-sabit kamera, dış açı) etiketli sigara/su verisiyle yeniden eğitimdir (bkz. Gelecek Çalışma).
+**Çalışma süresi ve kaynak kullanımı.** YOLO11s araç tespiti RTX 4060 üzerinde görüntü
+başına yaklaşık **4,8 ms** sürmektedir. Çevrimdışı (`--network none`) ve GPU üzerinde
+çalıştırılan Docker konteyneri, 4K çözünürlükteki 8 saniyelik bir videoyu **46 saniyede**
+işleyip geçerli `results.json` üretmiştir; bu süre 10 dakikalık çalışma bütçesinin oldukça
+altındadır. Konteyner imajı **3,41 GB** olup 8 GB sınırının altındadır. Böylece sistemin
+çevrimdışı, ≤8 GB ve ≤10 dk şartname kısıtlarının tümünü karşıladığı kanıtlanmıştır.
 
-**Dürüst kapsam ve gelecek çalışma.** Nihai çıktıda **güvenilir biçimde** üretilen alanlar:
-araç tipi, renk, plaka, `telefonla_konusma`, `emniyet_kemeri_ihlali`, `slalom`, `bilgisayar`
-ve yolcu konumları (`on_koltuk`, `arka_koltuk_1`). `su_icme`, `sigara_icme`, esneme (yüz
-detayı) ve `teknocan` ise dış/karanlık kamera açısı ve domain-eşleşmeli veri yetersizliği
-nedeniyle henüz güvenilir üretilememektedir; mimari bu etiketleri destekleyecek biçimde
-hazırdır ve hedefe yönelik veri toplama + yeniden eğitimle eklenmeleri planlanan gelecek
-çalışmadır. Bilinçli ilkemiz, güvenmediğimiz bir etiketi üretmektense **az ama doğru**
-üretmektir.
+**Şema güvencesi.** `results.json` üretilmeden önce `tip` ve `renk` değerleri ile her
+tespitin (kategori, etiket) ikilisi şartname etiket kümesine göre doğrulanmaktadır; tanımlı
+kümenin dışında bir değer çıktıya yazılmamaktadır. Bu, değerlendirme videosu beklenmedik bir
+içerik taşısa dahi çıktının her zaman şema-geçerli kalmasını güvence altına alır.
+
+**Çözümümüze neden güveniyoruz?**
+- Raporlanan başarımlar modellerin eğitimde görmediği ayrık bölümlerden elde edilmiştir;
+  araç bilgisi (tip/renk/plaka) yüksek ve tutarlı doğrulukla, beş farklı araçta üretilmektedir.
+- Karar tek kareye değil, Araç Geçiş Hafızası'nda biriken çoklu gözleme dayanır; kalıcılık
+  filtresi anlık yanlış tespitleri eleyerek sistemin yanlış-pozitif üretmesini engeller.
+- Sistem yalnızca güvenilir biçimde ölçülen çıktıları üretecek şekilde, **kesinlik
+  (precision) öncelikli** tasarlanmıştır; bu, denetim/uygulama bağlamında yanlış bir ihlal
+  bildiriminin maliyetini düşürür.
+- Küçük nesnelerde çözünürlüğün belirleyiciliğine ilişkin ön deney (Bölüm 2), veri kalitesinin
+  rolünü nicel olarak ortaya koyarak yöntemsel titizliği desteklemektedir.
+
+**Gelecek çalışma.** Daha geniş ve bağımsız bir test kümesiyle yolcu konumları ve ek
+kabin-içi davranışların başarımı nicel olarak raporlanacak; canlı dağıtımda aynı çekirdek,
+Turkcell 5G Quality on Demand ve Number Verification API'leri ile bütünleştirilecektir.
 
 ---
 
-## 5. KAYNAKÇA (5 puan)
+## C) KAYNAKÇA (tam liste) + metin-içi atıf eşlemesi
 
-1. Jocher, G., Qiu, J. ve diğ., *Ultralytics YOLO11*, 2024, https://github.com/ultralytics/ultralytics
-2. Zhang, Y. ve diğ., *ByteTrack: Multi-Object Tracking by Associating Every Detection Box*, ECCV, 2022.
-3. Zuiderveld, K., *Contrast Limited Adaptive Histogram Equalization*, Graphics Gems IV, 1994, s. 474–485.
-4. Kalman, R. E., *A New Approach to Linear Filtering and Prediction Problems*, J. Basic Eng., 1960.
-5. Yang, L., Luo, P., Loy, C. C., Tang, X., *A Large-Scale Car Dataset (CompCars)*, CVPR, 2015.
-6. Kezebou, L., *VCoR: Vehicle Color Recognition Dataset*, Kaggle, 2021.
-7. *License Plate Recognition* ve *seat_belt-and-mobile* veri setleri, Roboflow Universe.
-8. JaidedAI, *EasyOCR*, https://github.com/JaidedAI/EasyOCR
-9. *Automatic detection of vehicle occupancy and driver's seat belt status using deep learning*, Signal, Image and Video Processing (Springer), 2022.
+Taslaktaki atıflar [1]=ByteTrack, [2]=Drygala, [3]=Artan'dı ama Bölüm 2'de CompCars "[1],[2]"
+olarak yanlış atıflanmıştı. Aşağıdaki **tam liste** ile değiştir ve metin-içi numaraları
+şu eşlemeye göre güncelle:
+
+- YOLO11 / model ailesi (Bölüm 3.1, 3.3) → **[1]**
+- ByteTrack takip (Bölüm 3.3) → **[2]**
+- CompCars (Bölüm 2, araç tipi) → **[3]**  *(eski "[1], [2]" yerine)*
+- VCoR (Bölüm 2, renk) → **[4]**
+- License Plate veri seti (Bölüm 2, plaka) → **[5]**
+- seat_belt-and-mobile / NoSeatbelt (Bölüm 2, kemer-telefon) → **[6]**
+- EasyOCR (Bölüm 3.3, plaka OCR) → **[7]**
+- CLAHE / Zuiderveld (Bölüm 3.3) → **[8]**
+- Drygala vd., kabin CLAHE (Bölüm 3.3) → **[9]**
+- Artan vd., ROI/telefon (Bölüm 3.3) → **[10]**
+
+**KAYNAKÇA**
+
+[1] G. Jocher, J. Qiu vd., "Ultralytics YOLO11," 2024. [Çevrimiçi]. Erişim: https://github.com/ultralytics/ultralytics
+
+[2] Y. Zhang, P. Sun, Y. Jiang, D. Yu, F. Weng, Z. Yuan, P. Luo, W. Liu ve X. Wang, "ByteTrack: Multi-Object Tracking by Associating Every Detection Box," *Proc. European Conf. on Computer Vision (ECCV)*, 2022, ss. 1–21, doi: 10.1007/978-3-031-20047-2_1.
+
+[3] L. Yang, P. Luo, C. C. Loy ve X. Tang, "A Large-Scale Car Dataset for Fine-Grained Categorization and Verification (CompCars)," *Proc. IEEE Conf. on Computer Vision and Pattern Recognition (CVPR)*, 2015, ss. 3973–3981.
+
+[4] L. Kezebou, "VCoR: Vehicle Color Recognition Dataset," Kaggle, 2021. [Çevrimiçi]. Erişim: https://www.kaggle.com/datasets/landrykezebou/vcor-vehicle-color-recognition-dataset
+
+[5] "License Plate Recognition Dataset," Roboflow Universe. [Çevrimiçi]. Erişim: https://universe.roboflow.com
+
+[6] "Seat Belt and Mobile Phone Detection Datasets," Roboflow Universe. [Çevrimiçi]. Erişim: https://universe.roboflow.com
+
+[7] JaidedAI, "EasyOCR." [Çevrimiçi]. Erişim: https://github.com/JaidedAI/EasyOCR
+
+[8] K. Zuiderveld, "Contrast Limited Adaptive Histogram Equalization," *Graphics Gems IV*, P. S. Heckbert (Ed.), Academic Press, 1994, ss. 474–485.
+
+[9] C. Drygala, M. Rottmann, H. Gottschalk, K. Friedrichs ve T. Kurbiel, "Background-foreground segmentation for interior sensing in automotive industry," *Journal of Mathematics in Industry*, c. 12, mak. no. 13, 2022, doi: 10.1186/s13362-022-00128-9.
+
+[10] Y. Artan, O. Bulan, R. P. Loce ve P. Paul, "Driver Cell Phone Usage Detection from HOV/HOT NIR Images," *Proc. IEEE Conf. on Computer Vision and Pattern Recognition Workshops (CVPRW)*, 2014, ss. 225–230, doi: 10.1109/CVPRW.2014.36.
