@@ -133,8 +133,9 @@ class VehiclePassMemory:
         """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
         total = max(1, len(self.track))
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
-        # telefonla_konusma sik gorunur -> dusuk oran; yolcular icin varsayilan 0.25 kalicilik.
-        ratios = {'telefonla_konusma': 0.15}
+        # telefonla_konusma sik gorunur -> dusuk oran; su/sigara icin kalicilik iste
+        # (anlik domain yanlis-pozitifi elesin); yolcular varsayilan 0.25.
+        ratios = {'telefonla_konusma': 0.15, 'su_icme': 0.25, 'sigara_icme': 0.25}
         for etiket, obs in self.action_obs.items():
             min_ratio = ratios.get(etiket, 0.25)
             confirmed = len(obs) >= 3 and len(obs) / total >= min_ratio
@@ -258,7 +259,9 @@ class Pipeline:
         return best
 
     def _cabin_objects(self, roi):
-        """Self_v2 HD modeliyle kabin ROI'sinde koltuk siniflarini bul."""
+        """Self_v2 (DOMAIN) modeliyle kabin ROI'sinde koltuk + su/sigara siniflari.
+        su/sigara jenerik degil takim verisiyle egitilen domain modelinden alinir;
+        ornek TOGG videolarinda bu siniflar icin yanlis-pozitif gozlenmemistir."""
         if self.m_cabin is None or roi is None or roi.size == 0:
             return {}
         h, w = roi.shape[:2]
@@ -269,7 +272,7 @@ class Pipeline:
         out = {}
         for b in r.boxes:
             name = r.names[int(b.cls)]; c = float(b.conf)
-            if name in ('on_koltuk_2', 'arka_koltuk') and c > out.get(name, 0):
+            if name in ('on_koltuk_2', 'arka_koltuk', 'water', 'sigara') and c > out.get(name, 0):
                 out[name] = c
         return out
 
@@ -321,6 +324,10 @@ class Pipeline:
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
                 if 'arka_koltuk' in cab:       # Self_v2 arka yolcu -> sema 'arka_koltuk_1'
                     mem.add_action('arka_koltuk_1', t, cab['arka_koltuk'])
+                if 'water' in cab:             # Self_v2 domain su -> su_icme
+                    mem.add_action('su_icme', t, cab['water'])
+                if 'sigara' in cab:            # Self_v2 domain sigara -> sigara_icme
+                    mem.add_action('sigara_icme', t, cab['sigara'])
                 lab, c = self._cls(self.m_type, crop); mem.vote_type(lab, c)
                 lab, c = self._cls(self.m_color, crop); mem.vote_color(lab, c)
                 ptext, poconf = self._plate(crop); mem.add_plate(ptext, poconf)
