@@ -147,7 +147,7 @@ class VehiclePassMemory:
         total = max(1, len(self.track))
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
         # Jenerik nesne modelleri (sigara/su) gurultulu -> SUREKLILIK iste (patlama degil)
-        ratios = {'su_icme': 0.35, 'sigara_icme': 0.35, 'telefonla_konusma': 0.15}
+        ratios = {'su_icme': 0.35, 'sigara_icme': 0.50, 'telefonla_konusma': 0.15}
         for etiket, obs in self.action_obs.items():
             min_ratio = ratios.get(etiket, 0.25)
             confirmed = len(obs) >= 3 and len(obs) / total >= min_ratio
@@ -320,7 +320,7 @@ class Pipeline:
 
     def _cigarette(self, roi):
         return self._roi_object(
-            self.m_cigarette, roi, {'cigarette'}, conf=0.40
+            self.m_cigarette, roi, {'cigarette'}, conf=0.55
         )
 
     def _belt(self, crop):
@@ -369,8 +369,8 @@ class Pipeline:
                 npc, pcf = self._persons(cabin)
                 mem.add_persons(t, npc, pcf)
                 cab = self._cabin_objects(cabin)
-                # su_icme/sigara_icme: jenerik modeller her videoda yanlis-pozitif
-                # (su gercekte hic yok, sigara 1 videoda; guvenler ayrilamiyor) -> devre disi.
+                # su_icme + sigara_icme devre disi: jenerik modeller eval (TOGG) dagiliminda
+                # gercekle AYNI guvende yanlis-pozitif veriyor (veri yetersizligi) -> guvenilmez.
                 if 'on_koltuk_2' in cab:       # on yolcu -> on_koltuk
                     mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
                 if 'arka_koltuk' in cab:       # arka yolcu -> arka_koltuk_1
