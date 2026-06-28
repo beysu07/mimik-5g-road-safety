@@ -11,8 +11,8 @@ MİMİK, sabit kameralardan elde edilen video kayıtları üzerinde çalışan; 
 kaynaklı yol güvenliği risklerini otomatik tespit eden bütünleşik bir bilgisayarlı görü
 sistemidir. Sistem, tek bir video dosyasını girdi alır ve araç geçişi için şartnameye
 birebir uyan yapılandırılmış bir JSON çıktısı üretir: araç gövde tipi, plaka ve renk;
-sürücünün dikkat dağıtıcı/kural ihlali eylemleri (telefonla konuşma, su içme, emniyet
-kemeri ihlali, slalom); kabin içi nesneler ve yolcu konumları. Çözümün çekirdeği,
+sürücünün dikkat dağıtıcı/kural ihlali eylemleri (telefonla konuşma, emniyet kemeri ihlali,
+slalom); kabin içi nesneler (bilgisayar) ve yolcu konumları. Çözümün çekirdeği,
 Ultralytics YOLO11 tabanlı çok görevli bir algılama hattı ile aracı kare kare takip edip
 bulguları geçiş boyunca biriktiren **Araç Geçiş Hafızası** füzyon katmanından oluşur.
 Plaka tanıma iki aşamalıdır (bölge tespiti + CRNN/EasyOCR), plaka karakterleri zamansal
@@ -96,7 +96,7 @@ T4'e uygun). Kare-bazlı tek-model yaklaşımı karanlık/bulanıkta kırılgan,
 Boru hattı altı aşamadan oluşur: (1) kare çözme + örnekleme (değişken FPS/çözünürlüğe
 dayanıklı), (2) adaptif CLAHE, (3) araç tespiti + takip (YOLO11 + ByteTrack), (4) araç
 kutusundan beslenen paralel kollar — araç crop'undan tip/renk sınıflandırma, plaka
-tespiti→OCR, ön cam/kabin ROI'sinden telefon/kemer/kişi(yolcu)/su tespiti, (5) tüm
+tespiti→OCR, ön cam/kabin ROI'sinden telefon/kemer/kişi(yolcu) tespiti, (5) tüm
 bulguların **Araç Geçiş Hafızası** füzyon katmanında birleştirilmesi, (6) şema-saf
 `results.json` serileştirme. *(Mimari diyagramı için Şekil 2 — viz aracıyla üretilmiştir.)*
 
@@ -114,8 +114,8 @@ ikincil sınıflandırma (arka plan etkisini azaltır); tip CompCars'ın beş g�
 VCoR'un dokuz rengiyle eğitildi. **Plaka:** YOLO11 ile bölge tespiti → EasyOCR → TR plaka
 regex'i; **karakter bazlı zamansal oylama** ile geçiş boyunca en tutarlı dizi seçilir;
 "bulundu fakat okunamadı" ile "bulunamadı" ayrılır. **Kabin/ROI analizi:** araç kutusunun üst
-kabin bölgesi (greenhouse) kırpılıp CLAHE'den geçirilir; telefon (dış-cam modeli), kemer,
-kişi/yolcu ve su (yüksek-çözünürlük Self_v2 modeli, 1280 girdi) tespit edilir. **Yardımcı
+kabin bölgesi (greenhouse) kırpılıp CLAHE'den geçirilir; telefon (dış-cam modeli), kemer ve
+kişi/yolcu konumu (Self_v2 yüksek-çözünürlük modeli, 1280 girdi) tespit edilir. **Yardımcı
 sinyaller:** hız ve şerit sapması Araç Geçiş Hafızası'nda dahili tutulur; `slalom` araç
 yörüngesindeki yanal salınımdan koddan türetilir (veri gerektirmez). **Yazılım/donanım:**
 PyTorch, Ultralytics, OpenCV, EasyOCR; `nvidia/cuda:12.1.0` temel imajı üzerine, internet
@@ -138,9 +138,9 @@ Her model, eğitimde görülmeyen **ayrık test bölmeleri** üzerinde değerlen
 | Kemer + ön cam ROI | mAP@0.5 = **0.899**, F1 = 0.880 |
 | Telefon (dış-cam, `mobile`) | mAP@0.5 = **0.871** |
 | Yolcu/kişi (`person`) | mAP@0.5 = **0.851** |
-| Kendi veri — su (`water`, 1280) | mAP@0.5 = **0.995** |
 | Kendi veri — ön yolcu (`on_koltuk`) | mAP@0.5 = **0.995** |
-| Sigara dedektörü (`Cigarette`, kendi val) | mAP@0.5 = **0.859** (çapraz-domain ~%59) |
+| Su dedektörü (`water`, 1280) — *denendi, entegre edilmedi* | kendi val 0.995; çapraz-domain'de güvenilmez |
+| Sigara dedektörü (`Cigarette`) — *denendi, entegre edilmedi* | kendi val 0.859; çapraz-domain ~%59, güvenilmez |
 
 **Uçtan uca doğrulama.** Sistem; örnek (4K, karanlık) ve kendi (iPhone 2K, gündüz)
 videolarımız dahil **beş farklı araçta** uçtan uca çalıştırılmış, her birinde geçerli
@@ -158,19 +158,30 @@ Araç Geçiş Hafızası + kalıcılık filtresi sayesinde sistem yanlış-pozit
 çözünürlük deneyimiz ise küçük-nesne tespitinde veri kalitesinin rolünü nicel olarak ortaya
 koymaktadır.
 
-**Sigara ve su (nesne-tabanlı yaklaşım).** `sigara_icme` ve `su_icme`, eylemi doğrudan
-sınıflandırmak yerine kabin ROI'si üzerinde çalışan **adanmış nesne dedektörleriyle**
-(sigara, su şişesi) tespit edilir — "nesne varsa eylem var" ilkesi. Önemli bir metodolojik
-bulgu: COCO 'bottle' sınıfı, ön-camdan görülen şişeyi tam çözünürlükte bile tanıyamadı
-(0/15); bu nedenle adanmış dedektörler eğitildi. Sigara dedektörü **genel bir sigara
-kümesiyle (5346 görüntü) eğitilip kendi domain karelerimizde sınanmıştır** (çapraz-domain
-genelleme ~%59 yakalama) — yani aynı dağılıma ezberlemeyip gerçekten genellemektedir.
-Entegre hatta gerçek videolarda hem `sigara_icme` (~0.73) hem `su_icme` (~0.56)
-tetiklenmiştir. Araç Geçiş Hafızası'ndaki kalıcılık filtresi yanlış-pozitifleri sınırlar.
+**Sigara ve su (nesne-tabanlı yaklaşım — denendi, bilinçli olarak entegre edilmedi).**
+`sigara_icme` ve `su_icme` için eylemi doğrudan sınıflandırmak yerine, kabin ROI'si üzerinde
+çalışan **adanmış nesne dedektörleri** (sigara, su şişesi) yaklaşımını izledik — "nesne varsa
+eylem var" ilkesi. Önemli bir metodolojik bulgu: COCO 'bottle' sınıfı ön-camdan görülen
+şişeyi tam çözünürlükte bile tanıyamadı (0/15); bu nedenle adanmış dedektörler eğitildi ve
+kendi doğrulama bölmemizde yüksek skor verdi (su mAP@0.5 = 0.995, sigara 0.859). Ancak
+**entegre çapraz-domain sınamada** belirleyici bir sorun ortaya çıktı: değerlendirme
+dağılımında (TOGG ve diğer araçlar) bu iki dedektör, **gerçek pozitiflerle aynı güven
+aralığında yanlış-pozitif** üretti — su, şişe bulunmayan karelerde tetiklendi; sigara, gerçek
+bir örnekle birebir aynı (0.88) güven değerinde yanlış tetiklendi. Eşiği yükseltmek gerçek ile
+yanlışı **ayıramadı**. Bir ihlalin yanlış raporlanmasının onu kaçırmaktan daha maliyetli
+olduğu yol güvenliği bağlamında, **precision-öncelikli** bir mühendislik kararıyla bu iki
+etiketi nihai çıktıda **üretmemeyi** seçtik. Kök neden veri yetersizliğidir: jenerik
+dedektörler değerlendirme alanına genelleşmemektedir; çözüm, domain-eşleşmeli (yol kenarı
+sabit kamera, dış açı) etiketli sigara/su verisiyle yeniden eğitimdir (bkz. Gelecek Çalışma).
 
-**Dürüst kapsam.** Esneme (yüz detayı) ve `teknocan` (özel veri yok) dış kamera açısından
-güvenilir tespit edilememekte olup domain-eşleşmeli daha fazla veriyle iyileştirilmesi
-planlanmaktadır.
+**Dürüst kapsam ve gelecek çalışma.** Nihai çıktıda **güvenilir biçimde** üretilen alanlar:
+araç tipi, renk, plaka, `telefonla_konusma`, `emniyet_kemeri_ihlali`, `slalom`, `bilgisayar`
+ve yolcu konumları (`on_koltuk`, `arka_koltuk_1`). `su_icme`, `sigara_icme`, esneme (yüz
+detayı) ve `teknocan` ise dış/karanlık kamera açısı ve domain-eşleşmeli veri yetersizliği
+nedeniyle henüz güvenilir üretilememektedir; mimari bu etiketleri destekleyecek biçimde
+hazırdır ve hedefe yönelik veri toplama + yeniden eğitimle eklenmeleri planlanan gelecek
+çalışmadır. Bilinçli ilkemiz, güvenmediğimiz bir etiketi üretmektense **az ama doğru**
+üretmektir.
 
 ---
 
