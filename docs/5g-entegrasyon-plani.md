@@ -233,9 +233,30 @@ yalnızca "uç nokta değiştirme"ye iner.
 
 ---
 
-## 8. Açık konular
+## 7b. TAKVİM — Final: 7–8–9 Ağustos 2026, İstanbul
 
-- Final tarihi/yeri henüz duyurulmadı (şartname §6.7) → takvim netleşince plan sıkıştırılacak.
+Bugün 27 Temmuz → **11 gün**. 2 kişilik takım. Sıralama puana göre acımasız yapılmalıdır.
+
+| Tarih | İş | Neden bu sırada |
+|---|---|---|
+| **27–29 Tem** | QoD adaptörü + mock + durum makinesi + **ölçüm/ispat düzeneği** | %40'lık kalemin çekirdeği; Turkcell bilgisi **gerekmez** |
+| **30 Tem–1 Ağu** | Mobil uygulama iskeleti + **NV ile sessiz giriş** + tespit ekranı | NV cihazda çalışmak zorunda; uygulama olmadan olmaz |
+| **2–3 Ağu** | Gerçek Turkcell uç noktalarına geçiş + uçtan uca entegrasyon testi | Kimlik bilgileri bu tarihe kadar gelmeli |
+| **4–5 Ağu** | Prova + hata senaryoları (409 CONFLICT, UNAVAILABLE, ağ kesintisi, jeton süresi) | Sahada en çok bunlar patlar |
+| **6 Ağu** | Sunum + **yedek plan** (mock fallback ile demo), toparlanma | Şartname §6.7: önce kısa sunum var |
+| **7–9 Ağu** | **FİNAL — İstanbul** | |
+
+**Kritik kural:** *"Gerçek şebeke gelmezse demo yapamayız"* durumuna asla düşme. 27–29 Temmuz'da
+kurulacak **mock düzeneği**, kimlik bilgileri gecikse bile ispat tablosunu ve akışı çalışır
+tutar; finalde yalnızca `mock=False` yapılır.
+
+**Bugün yapılacak tek şey (bloke ediyor):** Turkcell/komiteden **QoD + NV kimlik bilgileri,
+base URL, QoS profil adları ve test hattı** talebi. §6'daki 10 soruyu tek mailde sor — cevap
+gelene kadar 1. adım paralel ilerler.
+
+---
+
+## 8. Açık konular
 - Mobil uygulama platformu seçilmedi (Android native / Flutter). NV akışı cihazda çalışacağı
   için platform seçimi NV entegrasyonunu doğrudan etkiler.
 - Analiz ucunun nerede koşacağı (telefon üstünde mi, sunucuda mı) kararı §6.7'deki
