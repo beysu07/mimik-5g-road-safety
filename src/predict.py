@@ -1,9 +1,10 @@
 import os
+import sys
 import cv2
 import numpy as np
 from collections import Counter, defaultdict
 from ultralytics import YOLO
-from src.utils import clahe_bgr, extract_plate, normalize_plate
+from src.utils import extract_plate, normalize_plate
 
 # Egitim sonrasi Docker icin weights/ altina kopyalanacak; lokal testte runs/ yollari.
 WEIGHTS = {
@@ -130,20 +131,24 @@ class VehiclePassMemory:
             self.add_event(t, 'sofor_eylemi', 'slalom', min(0.9, 0.5 + 0.1 * rev), gap=0)
 
     def _emit_actions(self):
-        """Kisa eylemleri yakin zamanli 3 nesne tespitiyle, digerlerini oranla uret."""
-        total = max(1, len(self.track))
+        """Birbirine yakin en az uc gozlem bulunan olaylari tek epizot olarak uret."""
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
-        # telefonla_konusma sik gorunur -> dusuk oran; su/sigara icin kalicilik iste
-        # (anlik domain yanlis-pozitifi elesin); yolcular varsayilan 0.25.
-        ratios = {'telefonla_konusma': 0.15, 'su_icme': 0.25, 'sigara_icme': 0.25}
         for etiket, obs in self.action_obs.items():
-            min_ratio = ratios.get(etiket, 0.25)
-            confirmed = len(obs) >= 3 and len(obs) / total >= min_ratio
-            if confirmed:
-                t_m, c_m = max(obs, key=lambda x: x[1])
-                kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
-                self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': kat,
-                                    'etiket': etiket, 'confidence_score': round(c_m, 2)})
+            ordered = sorted(obs)
+            confirmed = []
+            left = 0
+            for right, (t_right, _) in enumerate(ordered):
+                while t_right - ordered[left][0] > 1.5:
+                    left += 1
+                if right - left + 1 >= 3:
+                    confirmed = ordered[left:right + 1]
+                    break
+            if not confirmed:
+                continue
+            t_m, c_m = max(confirmed, key=lambda x: x[1])
+            kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
+            self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': kat,
+                                'etiket': etiket, 'confidence_score': round(c_m, 2)})
 
     def result(self, video_id):
         self.detect_slalom()
@@ -288,17 +293,20 @@ class Pipeline:
                     best = c
         return best
 
-    def run(self, video_path):
+    def run(self, video_path, frame_hook=None):
+        """frame_hook: kareyi isleme almadan once donusturen istege bagli fonksiyon
+        (5G ag benzetimi icin; None ise kare oldugu gibi kullanilir)."""
         cap = cv2.VideoCapture(video_path)
         if hasattr(cv2, 'CAP_PROP_ORIENTATION_AUTO'):
             # MOV rotation metadata'sini karelere uygula; aksi halde modeller yan goruntu alir.
             cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
         if not cap.isOpened():
-            return {'video_id': os.path.basename(video_path), 'arac_bilgisi': {}, 'tespitler': []}
+            raise RuntimeError(f'Video acilamadi: {video_path}')
         fps = cap.get(cv2.CAP_PROP_FPS) or 25
         step = max(1, round(fps / TARGET_FPS))
         mem = VehiclePassMemory()
         idx = -1
+        frame_errors = 0
         while True:
             if not cap.grab():
                 break
@@ -309,6 +317,8 @@ class Pipeline:
             if not ok:
                 break
             try:
+                if frame_hook is not None:
+                    frame = frame_hook(frame)
                 t = round(idx / fps, 1)
                 vbox, laptop = self._coco(frame)
                 if laptop > 0.4:
@@ -337,7 +347,12 @@ class Pipeline:
                 bc = self._belt(crop)
                 if bc is not None:
                     mem.add_action('emniyet_kemeri_ihlali', t, bc)
-            except Exception:
-                continue   # gecici hata ( or. OOM) bu kareyi atla, gecisi surdur
+            except Exception as exc:
+                frame_errors += 1
+                if frame_errors <= 3:
+                    print(f'Kare {idx} atlandi: {type(exc).__name__}: {exc}', file=sys.stderr)
+                continue
         cap.release()
+        if frame_errors:
+            print(f'Toplam {frame_errors} kare hata nedeniyle atlandi.', file=sys.stderr)
         return mem.result(os.path.basename(video_path))

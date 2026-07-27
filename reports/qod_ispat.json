@@ -1,0 +1,102 @@
+{
+  "video": "docker_test/input/video.mp4",
+  "gercek": {
+    "tip": "suv",
+    "plaka": "34TC8532",
+    "renk": "siyah"
+  },
+  "sonuclar": [
+    {
+      "mod": "qod_kapali",
+      "mbps": 0.9,
+      "plaka": "34TCE853",
+      "plaka_dogruluk": "4/8",
+      "plaka_skor": 0.5,
+      "tip": "suv",
+      "tip_dogru": true,
+      "renk": "siyah",
+      "renk_dogru": true,
+      "tespit_sayisi": 1,
+      "tespitler": [
+        "telefonla_konusma"
+      ],
+      "olcum": {
+        "profil": "best_effort",
+        "kare": 77,
+        "ortalama_kare_bayt": 13992,
+        "tahmini_mbps": 0.9,
+        "sure_sn": 41.2
+      },
+      "qod_olaylari": []
+    },
+    {
+      "mod": "qod_adaptif",
+      "mbps": 26.66,
+      "plaka": "34TC8532",
+      "plaka_dogruluk": "8/8",
+      "plaka_skor": 1.0,
+      "tip": "suv",
+      "tip_dogru": true,
+      "renk": "siyah",
+      "renk_dogru": true,
+      "tespit_sayisi": 1,
+      "tespitler": [
+        "telefonla_konusma"
+      ],
+      "olcum": {
+        "profil": "best_effort",
+        "kare": 77,
+        "ortalama_kare_bayt": 416544,
+        "tahmini_mbps": 26.66,
+        "sure_sn": 35.9,
+        "yuksek_kalite_kare": 66,
+        "toplam_kare": 77
+      },
+      "qod_olaylari": [
+        [
+          1785181603.666,
+          "TALEP",
+          "kritik durum: arac yaklasiyor -> QoD talebi"
+        ],
+        [
+          1785181603.666,
+          "TALEP",
+          "POST /sessions -> mock-1785181603666"
+        ],
+        [
+          1785181603.895,
+          "PENCERE",
+          "qosStatus AVAILABLE -> yuksek kalite penceresi acildi"
+        ],
+        [
+          1785181638.372,
+          "PENCERE",
+          "DELETE /sessions (arac kadrajdan cikti) - kaynak birakildi"
+        ]
+      ]
+    },
+    {
+      "mod": "surekli_yuksek",
+      "mbps": 30.76,
+      "plaka": "34TC8532",
+      "plaka_dogruluk": "8/8",
+      "plaka_skor": 1.0,
+      "tip": "suv",
+      "tip_dogru": true,
+      "renk": "siyah",
+      "renk_dogru": true,
+      "tespit_sayisi": 1,
+      "tespitler": [
+        "telefonla_konusma"
+      ],
+      "olcum": {
+        "profil": "QOS_L",
+        "kare": 77,
+        "ortalama_kare_bayt": 480568,
+        "tahmini_mbps": 30.76,
+        "sure_sn": 38.8
+      },
+      "qod_olaylari": []
+    }
+  ]
+}
