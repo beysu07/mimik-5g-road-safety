@@ -151,6 +151,18 @@ class VehiclePassMemory:
                                 'etiket': etiket, 'confidence_score': round(c_m, 2)})
 
     def result(self, video_id):
+        # result() canli modda tekrar tekrar cagrilir; detect_slalom/_emit_actions
+        # self.events'e ekleme yaptigi icin cagri IDEMPOTENT olmalidir -> anlik goruntu
+        # alinip sonunda geri yuklenir (aksi halde ayni tespit cogalir).
+        _events_yedek = list(self.events)
+        _last_yedek = dict(self._last)
+        try:
+            return self._result(video_id)
+        finally:
+            self.events = _events_yedek
+            self._last = _last_yedek
+
+    def _result(self, video_id):
         self.detect_slalom()
         self._emit_actions()   # yolcular artik Self_v2 koltuk modelinden (domain-eslesmeli)
         tip, tconf = self._pick(self.type_votes, self.type_conf)
@@ -293,9 +305,10 @@ class Pipeline:
                     best = c
         return best
 
-    def run(self, video_path, frame_hook=None):
+    def run(self, video_path, frame_hook=None, on_update=None, update_every=4):
         """frame_hook: kareyi isleme almadan once donusturen istege bagli fonksiyon
-        (5G ag benzetimi icin; None ise kare oldugu gibi kullanilir)."""
+        (5G ag benzetimi icin; None ise kare oldugu gibi kullanilir).
+        on_update: canli mod icin her update_every karede bir kismi sonucu alan geri cagri."""
         cap = cv2.VideoCapture(video_path)
         if hasattr(cv2, 'CAP_PROP_ORIENTATION_AUTO'):
             # MOV rotation metadata'sini karelere uygula; aksi halde modeller yan goruntu alir.
@@ -347,6 +360,8 @@ class Pipeline:
                 bc = self._belt(crop)
                 if bc is not None:
                     mem.add_action('emniyet_kemeri_ihlali', t, bc)
+                if on_update is not None and (idx // step) % update_every == 0:
+                    on_update(mem.result(os.path.basename(video_path)))
             except Exception as exc:
                 frame_errors += 1
                 if frame_errors <= 3:
