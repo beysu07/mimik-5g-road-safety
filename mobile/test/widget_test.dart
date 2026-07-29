@@ -14,6 +14,9 @@ class SahteKaynak implements AnalizKaynagi {
 
   @override
   Stream<AnalizDurumu> durumAkisi() => Stream<AnalizDurumu>.value(durum);
+
+  @override
+  String? kareUrl() => null; // testlerde ag goruntusu cekilmez
 }
 
 const _pencereDurumu = AnalizDurumu(

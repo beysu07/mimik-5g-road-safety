@@ -21,6 +21,8 @@ import threading
 import time
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
+import cv2
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from net.boost_controller import BoostController          # noqa: E402
@@ -34,12 +36,32 @@ _durum = {
     'sonuc': {'arac_bilgisi': {}, 'tespitler': []},
     'guncelleme': 0.0,
 }
+_son_kare = {'jpeg': None}          # telefonda gosterilecek son isaretli kare
 
 
 def _yaz(**kwargs):
     with _kilit:
         _durum.update(kwargs)
         _durum['guncelleme'] = round(time.time(), 3)
+
+
+def _kare_yayinla(frame, vbox, qod_durum, mbps):
+    """Kareyi kucultup arac kutusu + QoD serit ile isaretleyip JPEG olarak saklar."""
+    h, w = frame.shape[:2]
+    olcek = 720.0 / max(1, w)
+    kare = cv2.resize(frame, (int(w * olcek), int(h * olcek))) if olcek < 1 else frame.copy()
+    if vbox is not None:
+        x1, y1, x2, y2 = [int(v * olcek) if olcek < 1 else int(v) for v in vbox]
+        cv2.rectangle(kare, (x1, y1), (x2, y2), (80, 220, 80), 3)
+    renk = (76, 195, 138) if qod_durum == 'PENCERE' else (140, 140, 140)
+    cv2.rectangle(kare, (0, 0), (kare.shape[1], 34), (20, 24, 32), -1)
+    etiket = 'QoD AKTIF' if qod_durum == 'PENCERE' else qod_durum
+    cv2.putText(kare, '%s  %.1f Mbps' % (etiket, mbps), (10, 24),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, renk, 2)
+    ok, buf = cv2.imencode('.jpg', kare, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
+    if ok:
+        with _kilit:
+            _son_kare['jpeg'] = buf.tobytes()
 
 
 class CanliHook:
@@ -67,12 +89,17 @@ class CanliHook:
             pass
         aktif = self.ctrl.update(vbox, out.shape, now=self.i / float(TARGET_FPS))
         self.sim.switch(QOS_L if aktif else BEST_EFFORT)
+        mbps = round(self.sim.mbps(TARGET_FPS), 2)
         _yaz(qod={
             'durum': self.ctrl.state,
             'sessionId': self.ctrl.qod.session_id,
             'qosProfile': self.ctrl.qos_profile if aktif else None,
-            'mbps': round(self.sim.mbps(TARGET_FPS), 2),
+            'mbps': mbps,
         })
+        try:
+            _kare_yayinla(out, vbox, self.ctrl.state, mbps)
+        except Exception:
+            pass                                  # gorsel yayin demoyu durdurmasin
         return out
 
 
@@ -123,6 +150,19 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path.startswith('/durum'):
             with _kilit:
                 self._json(dict(_durum))
+        elif self.path.startswith('/kare'):
+            with _kilit:
+                jpeg = _son_kare['jpeg']
+            if not jpeg:
+                self._json({'hata': 'kare yok'}, 404)
+                return
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/jpeg')
+            self.send_header('Cache-Control', 'no-store')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Content-Length', str(len(jpeg)))
+            self.end_headers()
+            self.wfile.write(jpeg)
         elif self.path.startswith('/saglik'):
             self._json({'ok': True})
         elif os.path.isdir(WEB_DIR):

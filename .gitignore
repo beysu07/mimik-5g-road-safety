@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Yalniz kok dizindeki Python paket ciktisi; mobile/lib (Flutter kaynagi) haric tutulmali
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -257,4 +258,3 @@ mobile/.dart_tool/
 mobile/.flutter-plugins*
 mobile/android/.gradle/
 mobile/android/local.properties
-mobile/web/
