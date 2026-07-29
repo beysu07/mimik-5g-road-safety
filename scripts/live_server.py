@@ -5,10 +5,13 @@ Mimari: telefon (NV girisi + gosterim)  <--HTTP-->  laptop (7 modelli cikarim + 
 Uc noktalar:
     GET /durum   -> {"qod": {...}, "sonuc": {results.json semasi}, "guncelleme": ts}
     GET /saglik  -> {"ok": true}
+    GET /*       -> mobile/build/web (varsa) - uygulamanin web surumu ayni adresten servis
+                    edilir; boylece telefon (iPhone dahil) tarayicidan acip kullanabilir
+                    ve istekler ayni origin'e gider (CORS sorunu olusmaz).
 
 Kullanim:
     python scripts/live_server.py [video] [--port 8080] [--dongu]
-Mobil tarafta: BackendClient(baseUrl: 'http://<laptop-ip>:8080', mock: false)
+Telefon: http://<laptop-ip>:8080/  ·  Android app: BackendClient(baseUrl: ..., mock: false)
 """
 import argparse
 import json
@@ -16,7 +19,7 @@ import os
 import sys
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -96,15 +99,25 @@ def analiz_dongusu(video, dongu, qod_base_url=None, qod_token=None, telefon=None
         time.sleep(2)                            # araclar arasi bosluk (izleme fazi)
 
 
-class Handler(BaseHTTPRequestHandler):
+WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       'mobile', 'build', 'web')
+
+
+class Handler(SimpleHTTPRequestHandler):
+    """API uc noktalari + (varsa) uygulamanin web surumu ayni sunucudan."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, directory=WEB_DIR if os.path.isdir(WEB_DIR) else None, **kw)
+
     def _json(self, obj, code=200):
-        gövde = json.dumps(obj, ensure_ascii=False).encode('utf-8')
+        govde = json.dumps(obj, ensure_ascii=False).encode('utf-8')
         self.send_response(code)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Content-Length', str(len(gövde)))
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', str(len(govde)))
         self.end_headers()
-        self.wfile.write(gövde)
+        self.wfile.write(govde)
 
     def do_GET(self):
         if self.path.startswith('/durum'):
@@ -112,6 +125,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(dict(_durum))
         elif self.path.startswith('/saglik'):
             self._json({'ok': True})
+        elif os.path.isdir(WEB_DIR):
+            super().do_GET()                      # Flutter web surumu
         else:
             self._json({'hata': 'bilinmeyen uc nokta'}, 404)
 
