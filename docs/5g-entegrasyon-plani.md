@@ -235,15 +235,17 @@ yalnızca "uç nokta değiştirme"ye iner.
 
 ## 7b. TAKVİM — Final: 7–8–9 Ağustos 2026, İstanbul
 
-Bugün 27 Temmuz → **11 gün**. 2 kişilik takım. Sıralama puana göre acımasız yapılmalıdır.
+Bugün **29 Temmuz** → finale **9 gün**. 2 kişilik takım. Sıralama puana göre acımasız yapılmalıdır.
 
-| Tarih | İş | Neden bu sırada |
+| Tarih | İş | Durum |
 |---|---|---|
-| **27–29 Tem** | QoD adaptörü + mock + durum makinesi + **ölçüm/ispat düzeneği** | %40'lık kalemin çekirdeği; Turkcell bilgisi **gerekmez** |
-| **30 Tem–1 Ağu** | Mobil uygulama iskeleti + **NV ile sessiz giriş** + tespit ekranı | NV cihazda çalışmak zorunda; uygulama olmadan olmaz |
-| **2–3 Ağu** | Gerçek Turkcell uç noktalarına geçiş + uçtan uca entegrasyon testi | Kimlik bilgileri bu tarihe kadar gelmeli |
-| **4–5 Ağu** | Prova + hata senaryoları (409 CONFLICT, UNAVAILABLE, ağ kesintisi, jeton süresi) | Sahada en çok bunlar patlar |
-| **6 Ağu** | Sunum + **yedek plan** (mock fallback ile demo), toparlanma | Şartname §6.7: önce kısa sunum var |
+| ~~27–29 Tem~~ | QoD adaptörü + mock + durum makinesi + **ölçüm/ispat düzeneği** | ✅ **BİTTİ** (ispat: plaka 4/8 → 8/8) |
+| ~~29 Tem~~ | Mobil uygulama iskeleti + NV sessiz giriş (mock) + canlı ekran + laptop sunucusu | ✅ **BİTTİ** (5 test geçiyor) — plandan önde |
+| **30–31 Tem** | ① Android derleme ortamı (JDK + lisans) → **uygulamayı gerçek telefonda çalıştır** ② app'e laptop IP ayar ekranı ③ canlı kamera/RTSP girişi testi | ⬜ sıradaki |
+| **1–2 Ağu** | **Kapsam/recall artırma** (jüri notu: "tespitlerin doğruluğu düşük" — %40'lık kalem) | ⬜ |
+| **2–3 Ağu** | Gerçek Turkcell uç noktalarına geçiş + uçtan uca entegrasyon | ⬜ kimlik bilgileri bekleniyor |
+| **4–5 Ağu** | Prova + hata senaryoları (409 CONFLICT, UNAVAILABLE, ağ kesintisi, jeton süresi) + boşluklu demo videosu | ⬜ |
+| **6 Ağu** | **Sunum** + yedek plan (mock fallback ile demo), toparlanma | ⬜ |
 | **7–9 Ağu** | **FİNAL — İstanbul** | |
 
 **Kritik kural:** *"Gerçek şebeke gelmezse demo yapamayız"* durumuna asla düşme. 27–29 Temmuz'da
