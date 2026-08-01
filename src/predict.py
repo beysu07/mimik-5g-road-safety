@@ -21,8 +21,11 @@ LAPTOP_COCO = 63           # laptop -> bilgisayar
 TARGET_FPS = 8
 
 # Olay uretimi (video uzunlugundan bagimsiz olmali; videoya ozel sabit YOK):
-EPIZOT_ARASI = 2.0    # sn - bu kadar bosluktan sonrasi YENI olay sayilir
+EPIZOT_ARASI = 6.0    # sn - gozlem arasi bu kadar boslukta YENI olay sayilir
 MIN_GOZLEM = 2        # bir epizodun olay sayilmasi icin gereken en az tespit
+GORUNURLUK_BOSLUGU = 1.0   # sn - arac bu sureden uzun kaybolduysa gecis kesildi demektir
+SLALOM_PENCERE = 6.0  # sn - slalom aramasi icin kayan pencere
+SLALOM_ADIM = 2.0     # sn - pencerenin kaydirma adimi
 
 # Tespit esikleri - kalibrasyon icin env ile degistirilebilir (kod duzenlemeden olcum).
 # 0.40 -> 0.20: faz2 uzerinde olculdu (F1 0.10 -> 0.14); 0.12 gurultuye boguluyor (0.08).
@@ -121,31 +124,64 @@ class VehiclePassMemory:
         bt, bc = max(reads, key=lambda x: x[1])      # oylama gecersizse en guvenli tekil
         return bt, round(bc, 2)
 
-    def detect_slalom(self):
-        """Yorungedeki yanal salinimdan slalom (zikzak) tespiti."""
-        if len(self.track) < 8:
-            return
-        cx = np.array([p[1] for p in self.track], float)
-        w = float(np.median([p[2] for p in self.track])) or 1.0
+    @staticmethod
+    def _zikzak_sayisi(dilim):
+        """Bir yorunge diliminde yanal yon degisimi sayisi."""
+        cx = np.array([p[1] for p in dilim], float)
+        w = float(np.median([p[2] for p in dilim])) or 1.0
         k = min(5, len(cx))
         cs = np.convolve(cx, np.ones(k) / k, mode='valid')   # yumusat
         d = np.diff(cs)
         s = np.sign(d)
         s[np.abs(d) < 0.05 * w] = 0                          # kucuk titremeleri yok say
         nz = s[s != 0]
-        rev = int(np.sum(nz[1:] * nz[:-1] < 0)) if len(nz) > 1 else 0
-        if rev >= 3:                                          # 3+ yon degisimi = zikzak
-            t = round(self.track[len(self.track) // 2][0], 1)
-            self.add_event(t, 'sofor_eylemi', 'slalom', min(0.9, 0.5 + 0.1 * rev), gap=0)
+        return int(np.sum(nz[1:] * nz[:-1] < 0)) if len(nz) > 1 else 0
 
-    @staticmethod
-    def _epizotla(obs, ara=EPIZOT_ARASI):
-        """(t, conf) gozlemlerini, aralarindaki bosluk 'ara'yi astikca bolerek
-        epizotlara ayirir. Olcut video uzunlugundan bagimsizdir."""
+    def detect_slalom(self, pencere=SLALOM_PENCERE, adim=SLALOM_ADIM):
+        """Kayan pencerede zikzak arar ve olayi PENCERENIN BASINDA uretir.
+
+        Onceki surum tum yorungeyi TEK parca sayip olayi yorungenin ortasinda
+        uretiyordu; 114 sn'lik videoda bu zamani sistematik olarak yanlis yapiyordu
+        (54.7 sn uretildi, gercek 109.0 sn). Pencere yaklasimi video uzunlugundan
+        bagimsizdir ve ayni videoda birden fazla slalom epizodunu yakalayabilir.
+        """
+        if len(self.track) < 8:
+            return
+        t = self.track[0][0]
+        son = self.track[-1][0]
+        while t <= son - pencere / 2:
+            dilim = [p for p in self.track if t <= p[0] < t + pencere]
+            if len(dilim) >= 8:
+                rev = self._zikzak_sayisi(dilim)
+                if rev >= 3:                                  # 3+ yon degisimi = zikzak
+                    self.add_event(round(dilim[0][0], 1), 'sofor_eylemi', 'slalom',
+                                   min(0.9, 0.5 + 0.1 * rev), gap=pencere)
+            t += adim
+
+    def _gecis_kesintileri(self):
+        """Aracin kadrajdan kaybolup geri girdigi anlar: (kayboldu, geri_geldi)."""
+        kesinti = []
+        for onceki, simdi in zip(self.track, self.track[1:]):
+            if simdi[0] - onceki[0] > GORUNURLUK_BOSLUGU:
+                kesinti.append((onceki[0], simdi[0]))
+        return kesinti
+
+    def _epizotla(self, obs, ara=EPIZOT_ARASI):
+        """(t, conf) gozlemlerini epizotlara ayirir.
+
+        Iki olcut: (1) gozlemler arasi bosluk 'ara'yi asarsa, (2) ARADA ARAC
+        KADRAJDAN CIKMISSA. Ikincisi sartnamenin "olaylar gorulebilir olduklari
+        anda isaretlenmistir" tanimiyla birebir ortusur: arac gorunmez olup geri
+        geldiginde ayni eylem YENIDEN gorunur hale gelmistir. Sabit bir saniye
+        degerine bagli kalmadigi icin videodan bagimsizdir.
+        """
         sirali = sorted(obs)
+        kesinti = self._gecis_kesintileri()
         epizotlar, gecerli = [], [sirali[0]]
         for t, c in sirali[1:]:
-            if t - gecerli[-1][0] > ara:
+            onceki_t = gecerli[-1][0]
+            arada_kayip = any(onceki_t <= k0 and k1 <= t for k0, k1 in kesinti)
+            if t - onceki_t > ara or arada_kayip:
                 epizotlar.append(gecerli)
                 gecerli = [(t, c)]
             else:
