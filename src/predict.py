@@ -18,6 +18,12 @@ WEIGHTS = {
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
+PERSON_COCO = 0            # person -> yolcu (koltuk atamasi konumdan)
+PERSON_CONF = 0.25         # arac+kisi ortak esigi (kisi icin olculdu: 10/13 bulundu)
+
+# arka_koltuk_1 / _2 konvansiyonu belgelerde YAZMIYOR (3 Agu toplantisinda sorulacak).
+# Ayrimi yapamadigimiz surece tek etiket uretiyoruz; cevap gelince burasi degisir.
+ARKA_KOLTUK_ETIKET = os.environ.get('ARKA_KOLTUK_ETIKET', 'arka_koltuk_2')
 TARGET_FPS = 8
 
 # Olay uretimi (video uzunlugundan bagimsiz olmali; videoya ozel sabit YOK):
@@ -86,6 +92,15 @@ class VehiclePassMemory:
 
     def add_action(self, etiket, t, conf):
         self.action_obs[etiket].append((t, conf))
+
+    def yon(self):
+        """Aracin yatay hareket yonu: +1 saga, -1 sola (aracin ONU bu yondedir).
+        Yorunge kisayken 0 doner (koltuk atamasi yine de calisir, on/arka simetrik)."""
+        if len(self.track) < 4:
+            return 0
+        son = self.track[-min(len(self.track), 12):]
+        delta = son[-1][1] - son[0][1]
+        return 1 if delta > 0 else (-1 if delta < 0 else 0)
 
     def add_event(self, t, kategori, etiket, conf, gap=2.5):
         # Surekli bir eylemi TEK olay say: yeni olay ancak onceki tespitten gap
@@ -278,10 +293,16 @@ class Pipeline:
         return r.names[i], float(r.probs.top1conf)
 
     def _coco(self, frame):
+        """Ayni cikarimdan arac + laptop + KISI kutularini birlikte doner.
+
+        Kisi tespiti ek maliyet getirmez (zaten calisan model) ve kendi egittigimiz
+        koltuk sinifindan cok daha saglamdir: faz2'nin 13 arka-koltuk aninda kendi
+        sinifimiz 0/13 bulurken COCO 'person' 10/13 buldu.
+        """
         if self.m_vehicle is None:
-            return None, 0.0
-        r = self.m_vehicle.predict(frame, verbose=False, conf=0.3)[0]
-        vbest, varea, lap = None, 0, 0.0
+            return None, 0.0, []
+        r = self.m_vehicle.predict(frame, verbose=False, conf=PERSON_CONF)[0]
+        vbest, varea, lap, kisiler = None, 0, 0.0, []
         for b in r.boxes:
             cls = int(b.cls)
             if cls in VEHICLE_COCO:
@@ -291,7 +312,45 @@ class Pipeline:
                     varea, vbest = area, (max(0, x1), max(0, y1), x2, y2)
             elif cls == LAPTOP_COCO:
                 lap = max(lap, float(b.conf))
-        return vbest, lap
+            elif cls == PERSON_COCO:
+                x1, y1, x2, y2 = map(int, b.xyxy[0])
+                kisiler.append((x1, y1, x2, y2, float(b.conf)))
+        return vbest, lap, kisiler
+
+    @staticmethod
+    def _koltuk_ata(vbox, kisiler, yon):
+        """Arac icindeki kisileri KONUMA gore koltuklara esler.
+
+        Kural tamamen geometriktir (videoya ozel sabit yok):
+          - Kisi arac kutusunun icinde olmali.
+          - Aracin ONU, yorungeden gelen hareket yonundedir (yon = +1 saga, -1 sola).
+          - Arac kutusunun on yarisindaki kisiler ON, arka yarisindakiler ARKA koltuk.
+          - Onde surucu disindaki kisi -> on_koltuk.
+        Doner: [(etiket, guven), ...]
+        """
+        x1, y1, x2, y2 = vbox
+        gen = max(1, x2 - x1)
+        ic = [k for k in kisiler
+              if k[0] >= x1 - gen * 0.05 and k[2] <= x2 + gen * 0.05 and k[3] >= y1]
+        if not ic:
+            return []
+        # Her kisinin arac kutusundaki yatay konumu (0 = sol kenar, 1 = sag kenar)
+        konumlu = []
+        for k in ic:
+            oran = ((k[0] + k[2]) / 2.0 - x1) / gen
+            # Yon +1 ise arac saga bakiyor: on taraf yuksek x. Yon -1 ise tersi.
+            on_uzaklik = oran if yon >= 0 else (1.0 - oran)
+            konumlu.append((on_uzaklik, k[4]))
+        konumlu.sort(reverse=True)          # ona en yakindan uzaga
+
+        cikti = []
+        for i, (on_uzaklik, conf) in enumerate(konumlu):
+            if on_uzaklik >= 0.5:           # arac kutusunun on yarisi
+                if i > 0:                   # en ondeki surucudur, digeri on yolcu
+                    cikti.append(('on_koltuk', conf))
+            else:                           # arka yari -> arka koltuk
+                cikti.append((ARKA_KOLTUK_ETIKET, conf))
+        return cikti
 
     def _prep_plate(self, img):
         h, w = img.shape[:2]
@@ -395,20 +454,20 @@ class Pipeline:
                 if frame_hook is not None:
                     frame = frame_hook(frame)
                 t = round(idx / fps, 1)
-                vbox, laptop = self._coco(frame)
+                vbox, laptop, kisiler = self._coco(frame)
                 if laptop > 0.4:
                     mem.add_event(t, 'nesneler', 'bilgisayar', laptop, gap=2.0)
                 if vbox is None:
                     continue
                 mem.add_track(t, vbox)
+                # Yolcular: kendi koltuk sinifimiz bu kosullarda kor (faz2'de 0/13),
+                # COCO kisi tespiti calisiyor (10/13) -> koltugu KONUMDAN atiyoruz.
+                for etiket, guven in self._koltuk_ata(vbox, kisiler, mem.yon()):
+                    mem.add_action(etiket, t, guven)
                 x1, y1, x2, y2 = vbox
                 crop = frame[y1:y2, x1:x2]
                 cabin = crop[0:int(crop.shape[0] * 0.65), :]   # arabanin ust kabin (greenhouse)
                 cab = self._cabin_objects(cabin)
-                if 'on_koltuk_2' in cab:       # Self_v2 on yolcu -> sema 'on_koltuk'
-                    mem.add_action('on_koltuk', t, cab['on_koltuk_2'])
-                if 'arka_koltuk' in cab:       # Self_v2 arka yolcu -> sema 'arka_koltuk_1'
-                    mem.add_action('arka_koltuk_1', t, cab['arka_koltuk'])
                 if 'water' in cab:             # Self_v2 domain su -> su_icme
                     mem.add_action('su_icme', t, cab['water'])
                 if 'sigara' in cab:            # Self_v2 domain sigara -> sigara_icme
