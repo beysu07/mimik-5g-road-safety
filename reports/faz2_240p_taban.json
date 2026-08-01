@@ -1,0 +1,23 @@
+{
+  "video_id": "faz2_240p.ts",
+  "arac_bilgisi": {
+    "tip": "suv",
+    "plaka": "41C8522",
+    "renk": "siyah",
+    "confidence_score": 0.65
+  },
+  "tespitler": [
+    {
+      "zaman_saniye": 11.4,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.67
+    },
+    {
+      "zaman_saniye": 55.4,
+      "kategori": "sofor_eylemi",
+      "etiket": "slalom",
+      "confidence_score": 0.9
+    }
+  ]
+}

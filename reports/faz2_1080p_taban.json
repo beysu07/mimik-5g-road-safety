@@ -1,0 +1,23 @@
+{
+  "video_id": "faz2_1080p.ts",
+  "arac_bilgisi": {
+    "tip": "suv",
+    "plaka": "34TC8532",
+    "renk": "siyah",
+    "confidence_score": 0.84
+  },
+  "tespitler": [
+    {
+      "zaman_saniye": 11.0,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.69
+    },
+    {
+      "zaman_saniye": 54.7,
+      "kategori": "sofor_eylemi",
+      "etiket": "slalom",
+      "confidence_score": 0.9
+    }
+  ]
+}

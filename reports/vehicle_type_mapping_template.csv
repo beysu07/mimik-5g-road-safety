@@ -1,0 +1,11 @@
+source_dataset,source_label,final_label,notes
+compcars,sedan,sedan,
+compcars,suv,suv,
+compcars,hatchback,hatchback,
+compcars,pickup,pickup,
+compcars,mpv,minibus,verify visually
+compcars,minivan,minibus,verify visually
+compcars,van,panelvan,verify visually
+compcars,cargo_van,panelvan,if available
+compcars,truck,kamyon,verify visually
+togg,togg,suv,Togg T10X should be mapped to suv for final JSON
