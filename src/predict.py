@@ -20,6 +20,14 @@ VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
 TARGET_FPS = 8
 
+# Olay uretimi (video uzunlugundan bagimsiz olmali; videoya ozel sabit YOK):
+EPIZOT_ARASI = 2.0    # sn - bu kadar bosluktan sonrasi YENI olay sayilir
+MIN_GOZLEM = 2        # bir epizodun olay sayilmasi icin gereken en az tespit
+
+# Tespit esikleri - kalibrasyon icin env ile degistirilebilir (kod duzenlemeden olcum).
+# 0.40 -> 0.20: faz2 uzerinde olculdu (F1 0.10 -> 0.14); 0.12 gurultuye boguluyor (0.08).
+CONF_CABIN = float(os.environ.get('CONF_CABIN', 0.20))
+
 # FTR sema guvencesi: cikti YALNIZ bu degerleri icerebilir (ASCII kucuk harf, birebir).
 VALID_TIP = {'sedan', 'suv', 'hatchback', 'pickup', 'minibus', 'panelvan', 'kamyon'}
 VALID_RENK = {'beyaz', 'siyah', 'gri', 'kirmizi', 'mavi', 'sari',
@@ -130,25 +138,43 @@ class VehiclePassMemory:
             t = round(self.track[len(self.track) // 2][0], 1)
             self.add_event(t, 'sofor_eylemi', 'slalom', min(0.9, 0.5 + 0.1 * rev), gap=0)
 
+    @staticmethod
+    def _epizotla(obs, ara=EPIZOT_ARASI):
+        """(t, conf) gozlemlerini, aralarindaki bosluk 'ara'yi astikca bolerek
+        epizotlara ayirir. Olcut video uzunlugundan bagimsizdir."""
+        sirali = sorted(obs)
+        epizotlar, gecerli = [], [sirali[0]]
+        for t, c in sirali[1:]:
+            if t - gecerli[-1][0] > ara:
+                epizotlar.append(gecerli)
+                gecerli = [(t, c)]
+            else:
+                gecerli.append((t, c))
+        epizotlar.append(gecerli)
+        return epizotlar
+
     def _emit_actions(self):
-        """Birbirine yakin en az uc gozlem bulunan olaylari tek epizot olarak uret."""
+        """Her EPIZOT icin ayri bir olay uretir (etiket basina tek olay DEGIL).
+
+        Bir eylem video boyunca birden cok kez gorunebilir; onceki surum ilk
+        dogrulanan pencereden sonra durdugu icin etiket basina yalnizca bir olay
+        cikiyordu. Zaman, epizodun BASLANGICIDIR: sartname ground truth'u
+        "olaylar gorulebilir olduklari anda isaretlenmistir" diye tanimlar.
+        """
         yolcu = {'on_koltuk', 'arka_koltuk_1', 'arka_koltuk_2'}
         for etiket, obs in self.action_obs.items():
-            ordered = sorted(obs)
-            confirmed = []
-            left = 0
-            for right, (t_right, _) in enumerate(ordered):
-                while t_right - ordered[left][0] > 1.5:
-                    left += 1
-                if right - left + 1 >= 3:
-                    confirmed = ordered[left:right + 1]
-                    break
-            if not confirmed:
+            if not obs:
                 continue
-            t_m, c_m = max(confirmed, key=lambda x: x[1])
             kat = 'yolcular' if etiket in yolcu else 'sofor_eylemi'
-            self.events.append({'zaman_saniye': round(t_m, 1), 'kategori': kat,
-                                'etiket': etiket, 'confidence_score': round(c_m, 2)})
+            for epizot in self._epizotla(obs):
+                if len(epizot) < MIN_GOZLEM:
+                    continue                      # tek-iki karelik parlama = gurultu
+                self.events.append({
+                    'zaman_saniye': round(epizot[0][0], 1),
+                    'kategori': kat,
+                    'etiket': etiket,
+                    'confidence_score': round(max(c for _, c in epizot), 2),
+                })
 
     def result(self, video_id):
         # result() canli modda tekrar tekrar cagrilir; detect_slalom/_emit_actions
@@ -285,7 +311,7 @@ class Pipeline:
         if max(h, w) < 1280:
             s = 1280.0 / max(h, w)
             roi = cv2.resize(roi, (int(w * s), int(h * s)))
-        r = self.m_cabin.predict(roi, verbose=False, conf=0.4, imgsz=1280)[0]
+        r = self.m_cabin.predict(roi, verbose=False, conf=CONF_CABIN, imgsz=1280)[0]
         out = {}
         for b in r.boxes:
             name = r.names[int(b.cls)]; c = float(b.conf)

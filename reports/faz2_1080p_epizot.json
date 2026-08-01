@@ -1,0 +1,47 @@
+{
+  "video_id": "faz2_1080p.ts",
+  "arac_bilgisi": {
+    "tip": "suv",
+    "plaka": "34TC8532",
+    "renk": "siyah",
+    "confidence_score": 0.84
+  },
+  "tespitler": [
+    {
+      "zaman_saniye": 11.0,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.71
+    },
+    {
+      "zaman_saniye": 28.6,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.62
+    },
+    {
+      "zaman_saniye": 54.7,
+      "kategori": "sofor_eylemi",
+      "etiket": "slalom",
+      "confidence_score": 0.9
+    },
+    {
+      "zaman_saniye": 71.5,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.77
+    },
+    {
+      "zaman_saniye": 93.5,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.61
+    },
+    {
+      "zaman_saniye": 108.4,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.65
+    }
+  ]
+}
