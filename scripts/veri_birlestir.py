@@ -24,6 +24,8 @@ import shutil
 HARICI = [
     ('datasets/Cigarette', {'Cigarette': 'sigara_icme', 'smoking': 'sigara_icme'}),
     ('datasets/Bottle', {'bottle': 'su_icme'}),
+    # Kendi dis-aci cekimlerimiz: az sayida ama ALAN UYUMLU (sigara 17, water 15 kutu)
+    ('datasets/Self_v2', {'sigara': 'sigara_icme', 'water': 'su_icme'}),
 ]
 FAZ2 = 'datasets/faz2_etiketli'          # Roboflow YOLO disa aktarimi
 SEMA = ['teknocan', 'bilgisayar', 'su_icme', 'sigara_icme']
@@ -105,8 +107,10 @@ def main():
         if not os.path.isdir(kok):
             print('YOK (atlandi):', kok); continue
         onek = os.path.basename(kok).lower()
+        # Self_v2 kendi dis-aci cekimimiz = ALAN verisi; seyreltilmez.
+        oran = 1.0 if onek.startswith('self') else a.harici_oran
         for s in ('train', 'valid'):
-            aktar(kok, esleme, a.out, s, a.harici_oran, sayac, onek)
+            aktar(kok, esleme, a.out, s, oran, sayac, onek)
 
     if os.path.isdir(FAZ2):
         for s in ('train', 'valid'):
