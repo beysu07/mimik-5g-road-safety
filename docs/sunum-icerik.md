@@ -35,31 +35,42 @@ video → kare örnekleme → araç tespiti + takip
 ```
 **Tasarım ilkesi:** karar tek kareye değil, **araç geçişi boyunca biriken gözleme** dayanır.
 
-## Slayt 4 — ⭐ Ölçülmüş iyileşme yolculuğu (2 dk) — SUNUMUN KALBİ
+## Slayt 4 — ⭐ Çözümün üç tasarım kararı (2 dk) — SUNUMUN KALBİ
 
-Faz2 videosu + ground truth ile her adım ölçüldü:
+Sistemi kurarken üç kritik kararı **ölçerek** verdik.
 
-| # | Ne değişti | F1 |
-|---|---|---|
-| — | Taban (FTR'den gelen hat) | **0,06** |
-| 1 | Epizodik olay üretimi | 0,14 |
-| 2 | Kişi tespiti + geometrik koltuk ataması | 0,31 |
-| 3 | Epizotların araç geçişlerine hizalanması | 0,40 |
-| 4 | "En öndeki kişi sürücüdür" düzeltmesi | 0,47 |
-| 5 | Alan-uyumlu kabin nesnesi modeli | 0,58 |
-| 6 | Eşik kalibrasyonu | 0,61 |
-| **VM** | **Değerlendirme ortamında ölçülen** | **0,66** |
+**Karar 1 — Karar tek kareye değil, araç geçişine dayanır.**
+Bir eylem 114 saniyelik videoda birden çok kez görünür hale gelir. Bu yüzden gözlemleri
+*epizotlara* ayırıp her epizot için ayrı olay üretiyoruz. Epizot sınırını sabit bir
+saniyeye değil, **aracın görünürlüğüne** bağladık: araç kadrajdan çıkıp geri girdiğinde
+eylem yeniden görünür olmuştur. Şartnamenin *"olaylar görülebilir oldukları anda
+işaretlenir"* tanımıyla birebir örtüşür ve video uzunluğundan bağımsızdır.
 
-**11 kat iyileşme.** 1–4 arası hiç model eğitmeden, yalnız mimari düzeltmelerle.
+**Karar 2 — Yolcu tespitinde hazır güçlü modeli, özel sınıfa tercih ettik.**
+Kendi topladığımız veriyle eğittiğimiz koltuk sınıfını referans anlarda ölçtük: **0/13**.
+Aynı anlarda hazır kişi tespiti: **10/13**. Bunun üzerine koltuk kimliğini modele
+sorduran yaklaşımı bırakıp **geometriye** dayandırdık: kişinin araç kutusundaki konumu +
+aracın yörüngeden gelen hareket yönü. En öndeki kişi sürücüdür, arkadakiler yolcudur.
+Bu kural aynalama testinde **hiç kayıp vermiyor** — sabit bir sol/sağ varsayımı yok.
 
-Anlatılacak üç teşhis (hepsi ölçümle bulundu):
-1. **Tek-geçiş varsayımı:** hat 8 sn'lik video için tasarlanmıştı, etiket başına tek olay
-   üretiyordu; 114 sn'de 34 olay bekleniyordu.
-2. **Küresel oran eşiği çöküyordu:** `gözlem/toplam_kare ≥ oran` — video uzadıkça kısa
-   olaylar matematiksel olarak eşiği geçemez hâle geliyordu.
-3. **Kendi eğittiğimiz koltuk sınıfı kördü:** 13 referans anında **0/13**;
-   hazır COCO kişi tespiti aynı anlarda **10/13**. → Özel sınıfı bırakıp
-   kişi tespiti + geometri kullandık.
+**Karar 3 — Alan uyumu, veri miktarından önemli.**
+Yarışmaya özel nesneler (`teknocan`, kabin içi hedefler) için açık veri seti yok.
+6.000 harici görüntüyle eğittiğimiz ilk model, hedef görüntünün karanlığını öğrenemeyip
+sahneyi ezberledi. Harici veriyi seyreltip **hedef alandan gelen kareleri ağırlıklandırınca**
+model ayrımı öğrendi: `teknocan` mAP@0.5 = **0,995**, `bilgisayar` = **0,913**.
+
+**Sonuç — değerlendirme ortamında ölçülen:**
+
+| Ölçüt | Değer |
+|---|---|
+| Araç bilgisi (tip / plaka / renk) | **3/3 doğru** |
+| Tespit F1 | **0,66** |
+| Precision / Recall | 0,64 / 0,68 |
+| Çalışma süresi | 99 sn (limit 600 sn) |
+
+Yedi etiket türünde güvenilir üretim: `teknocan` 4/4 · `sigara_icme` 3/3 ·
+`telefonla_konusma` 2/2 · `bilgisayar` 1/1 · `on_koltuk` 1/1 · `arka_koltuk_2` 11/12 ·
+`su_icme` 1/2
 
 ## Slayt 5 — ⭐ Ezberlemediğimizin kanıtı (2 dk) — İKİNCİ KOZ
 
@@ -113,11 +124,14 @@ nicel göstermiştik (512 px'de küçük nesne mAP≈0; tam çözünürlükte 0,
 
 ## Slayt 8 — Kapanış (30 sn)
 Üç cümle:
-1. Ölçüm altyapısı kurduk: her değişiklik **ground truth'a karşı** puanlandı.
-2. İyileşmeyi kanıtladık: **0,06 → 0,66** — değerlendirme ortamında ölçüldü.
-3. Genellemeyi kanıtladık: bozulma, farklı araç ve duyarlılık testleriyle.
+1. **Ölçüm altyapısı kurduk** — her tasarım kararı ground truth'a karşı puanlandı,
+   hiçbir seçim sezgiyle yapılmadı.
+2. **Genellemeyi kanıtladık** — bozulma testi, farklı araçlar ve duyarlılık analiziyle;
+   çözüm tek bir videoya bağlı değil.
+3. **Değerlendirme ortamında doğruladık** — araç bilgisi 3/3, tespit F1 0,66,
+   süre bütçesinin altıda biri.
 
-*"Sonucumuz mükemmel değil; ama her rakamın arkasında bir ölçüm var."*
+*"Her rakamın arkasında bir ölçüm, her ölçümün arkasında bir tasarım kararı var."*
 
 ---
 
