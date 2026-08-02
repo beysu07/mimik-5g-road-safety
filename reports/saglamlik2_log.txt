@@ -1,0 +1,22 @@
+temiz (referans)   tespit=18  TP= 8 FP=10  P=0.44 R=0.24 F1=0.31  arac=3/3
+karanlik  (x0.6)   tespit=17  TP= 7 FP=10  P=0.41 R=0.21 F1=0.27  arac=3/3
+parlak    (x1.5)   tespit=20  TP= 8 FP=12  P=0.40 R=0.24 F1=0.30  arac=3/3
+bulanik   (k=7)    tespit=17  TP= 8 FP= 9  P=0.47 R=0.24 F1=0.31  arac=2/3
+gurultu   (s=12)   tespit=20  TP=11 FP= 9  P=0.55 R=0.32 F1=0.41  arac=3/3
+uzak      (x0.5)   tespit=18  TP= 9 FP= 9  P=0.50 R=0.26 F1=0.35  arac=3/3
+ayna (sol-sag)     tespit=17  TP= 8 FP= 9  P=0.47 R=0.24 F1=0.31  arac=2/3
+
+==========================================================================
+BOZULMA                  F1 F1 kayip     arac   tespit
+==========================================================================
+temiz (referans)       0.31       0%        3       18
+karanlik  (x0.6)       0.27      11%        3       17
+parlak    (x1.5)       0.30       4%        3       20
+bulanik   (k=7)        0.31      -2%        2       17
+gurultu   (s=12)       0.41     -32%        3       20
+uzak      (x0.5)       0.35     -13%        3       18
+ayna (sol-sag)         0.31      -2%        2       17
+==========================================================================
+Okuma: F1 kaybi kucukse ayar SAGLAM; kucuk bozulmada cokuyorsa sahneye
+ezberlenmis demektir. arac (tip/plaka/renk) 3/3 kalmali.
+JSON -> reports/saglamlik.json

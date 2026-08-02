@@ -29,6 +29,7 @@ TARGET_FPS = 8
 # Olay uretimi (video uzunlugundan bagimsiz olmali; videoya ozel sabit YOK):
 EPIZOT_ARASI = 6.0    # sn - gozlem arasi bu kadar boslukta YENI olay sayilir
 MIN_GOZLEM = 2        # bir epizodun olay sayilmasi icin gereken en az tespit
+GECIS_MIN_ARA = 3.0        # sn - iki gecis siniri arasi asgari mesafe
 GORUNURLUK_BOSLUGU = 1.0   # sn - arac bu sureden uzun kaybolduysa gecis kesildi demektir
 SLALOM_PENCERE = 6.0  # sn - slalom aramasi icin kayan pencere
 SLALOM_ADIM = 2.0     # sn - pencerenin kaydirma adimi
@@ -181,6 +182,28 @@ class VehiclePassMemory:
                 kesinti.append((onceki[0], simdi[0]))
         return kesinti
 
+    def _gecis_sinirlari(self):
+        """Arac gecislerinin sinir anlari: gorunen genisligin YEREL MINIMUMLARI.
+
+        Arac yaklasirken kutusu buyur, uzaklasirken kuculur. Genisligin dip yaptigi
+        an = arac en uzakta = bir gecis bitti, digeri basliyor. GT olaylari "gorunur
+        oldugu anda" isaretledigi icin olay zamanlari bu sinirlarla hizalanmalidir.
+        Tek gecislik videoda dip bulunmaz -> bos liste doner, davranis degismez.
+        """
+        if len(self.track) < 12:
+            return []
+        t = np.array([p[0] for p in self.track], float)
+        w = np.array([p[2] for p in self.track], float)
+        k = max(3, len(w) // 40) | 1                       # tek sayi pencere
+        ws = np.convolve(w, np.ones(k) / k, mode='same')
+        tepe = float(ws.max()) or 1.0
+        sinirlar = []
+        for i in range(1, len(ws) - 1):
+            if ws[i] <= ws[i - 1] and ws[i] <= ws[i + 1] and ws[i] < 0.7 * tepe:
+                if not sinirlar or t[i] - sinirlar[-1] > GECIS_MIN_ARA:
+                    sinirlar.append(float(t[i]))
+        return sinirlar
+
     def _epizotla(self, obs, ara=EPIZOT_ARASI):
         """(t, conf) gozlemlerini epizotlara ayirir.
 
@@ -192,11 +215,14 @@ class VehiclePassMemory:
         """
         sirali = sorted(obs)
         kesinti = self._gecis_kesintileri()
+        sinirlar = self._gecis_sinirlari()
         epizotlar, gecerli = [], [sirali[0]]
         for t, c in sirali[1:]:
             onceki_t = gecerli[-1][0]
             arada_kayip = any(onceki_t <= k0 and k1 <= t for k0, k1 in kesinti)
-            if t - onceki_t > ara or arada_kayip:
+            # Iki gozlem arasinda bir GECIS SINIRI kaldiysa yeni gecis basladi demektir.
+            arada_sinir = any(onceki_t < s0 <= t for s0 in sinirlar)
+            if t - onceki_t > ara or arada_kayip or arada_sinir:
                 epizotlar.append(gecerli)
                 gecerli = [(t, c)]
             else:
