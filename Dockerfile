@@ -36,6 +36,7 @@ COPY weights/plate.pt /app/models/plate.pt
 COPY weights/seatbelt.pt /app/models/seatbelt.pt
 COPY weights/phone_action.pt /app/models/phone_action.pt
 COPY weights/self_actions_hd.pt /app/models/self_actions_hd.pt
+COPY weights/kabin_v2.pt /app/models/kabin_v2.pt
 COPY src/ /app/src/
 COPY app.py /app/
 
@@ -46,7 +47,8 @@ ENV W_VEHICLE=/app/models/yolo11s.pt \
     W_PLATE=/app/models/plate.pt \
     W_BELT=/app/models/seatbelt.pt \
     W_ACTION=/app/models/phone_action.pt \
-    W_CABIN=/app/models/self_actions_hd.pt
+    W_CABIN=/app/models/self_actions_hd.pt \
+    W_NESNE=/app/models/kabin_v2.pt
 
 # /app/data/input/video.mp4 -> /app/data/output/results.json
 CMD ["python3", "app.py"]
