@@ -1,0 +1,167 @@
+{
+  "video_id": "faz2_1080p.ts",
+  "arac_bilgisi": {
+    "tip": "suv",
+    "plaka": "34TC8532",
+    "renk": "siyah",
+    "confidence_score": 0.84
+  },
+  "tespitler": [
+    {
+      "zaman_saniye": 3.1,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.5
+    },
+    {
+      "zaman_saniye": 11.0,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.69
+    },
+    {
+      "zaman_saniye": 11.3,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.71
+    },
+    {
+      "zaman_saniye": 12.4,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.62
+    },
+    {
+      "zaman_saniye": 22.4,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.71
+    },
+    {
+      "zaman_saniye": 28.6,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.62
+    },
+    {
+      "zaman_saniye": 30.5,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.37
+    },
+    {
+      "zaman_saniye": 33.4,
+      "kategori": "yolcular",
+      "etiket": "on_koltuk",
+      "confidence_score": 0.64
+    },
+    {
+      "zaman_saniye": 40.3,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.7
+    },
+    {
+      "zaman_saniye": 40.9,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.57
+    },
+    {
+      "zaman_saniye": 47.9,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.55
+    },
+    {
+      "zaman_saniye": 55.3,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.6
+    },
+    {
+      "zaman_saniye": 66.2,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.64
+    },
+    {
+      "zaman_saniye": 71.5,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.77
+    },
+    {
+      "zaman_saniye": 73.2,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.77
+    },
+    {
+      "zaman_saniye": 75.6,
+      "kategori": "yolcular",
+      "etiket": "on_koltuk",
+      "confidence_score": 0.32
+    },
+    {
+      "zaman_saniye": 81.7,
+      "kategori": "yolcular",
+      "etiket": "on_koltuk",
+      "confidence_score": 0.5
+    },
+    {
+      "zaman_saniye": 82.8,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.47
+    },
+    {
+      "zaman_saniye": 89.6,
+      "kategori": "yolcular",
+      "etiket": "on_koltuk",
+      "confidence_score": 0.48
+    },
+    {
+      "zaman_saniye": 93.5,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.61
+    },
+    {
+      "zaman_saniye": 94.0,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.43
+    },
+    {
+      "zaman_saniye": 97.7,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.66
+    },
+    {
+      "zaman_saniye": 98.0,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.7
+    },
+    {
+      "zaman_saniye": 98.3,
+      "kategori": "yolcular",
+      "etiket": "on_koltuk",
+      "confidence_score": 0.47
+    },
+    {
+      "zaman_saniye": 108.4,
+      "kategori": "sofor_eylemi",
+      "etiket": "telefonla_konusma",
+      "confidence_score": 0.65
+    },
+    {
+      "zaman_saniye": 109.0,
+      "kategori": "yolcular",
+      "etiket": "arka_koltuk_2",
+      "confidence_score": 0.44
+    }
+  ]
+}

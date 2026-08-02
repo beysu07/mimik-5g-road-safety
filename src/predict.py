@@ -24,10 +24,13 @@ PERSON_CONF = 0.25         # arac+kisi ortak esigi (kisi icin olculdu: 10/13 bul
 # arka_koltuk_1 / _2 konvansiyonu belgelerde YAZMIYOR (3 Agu toplantisinda sorulacak).
 # Ayrimi yapamadigimiz surece tek etiket uretiyoruz; cevap gelince burasi degisir.
 ARKA_KOLTUK_ETIKET = os.environ.get('ARKA_KOLTUK_ETIKET', 'arka_koltuk_2')
+# En ondeki kisi surucudur; yolcu sayilmamalidir (yanlis-pozitif kaynagi).
+SURUCUYU_ATLA = os.environ.get('SURUCUYU_ATLA', '1') == '1'
 TARGET_FPS = 8
 
 # Olay uretimi (video uzunlugundan bagimsiz olmali; videoya ozel sabit YOK):
-EPIZOT_ARASI = 6.0    # sn - gozlem arasi bu kadar boslukta YENI olay sayilir
+# Env ile ayarlanabilir: buyuk deger = yalniz GECIS SINIRI ve gorunurluk bolsun
+EPIZOT_ARASI = float(os.environ.get('EPIZOT_ARASI', 6.0))
 MIN_GOZLEM = 2        # bir epizodun olay sayilmasi icin gereken en az tespit
 GECIS_MIN_ARA = 3.0        # sn - iki gecis siniri arasi asgari mesafe
 GORUNURLUK_BOSLUGU = 1.0   # sn - arac bu sureden uzun kaybolduysa gecis kesildi demektir
@@ -371,9 +374,10 @@ class Pipeline:
 
         cikti = []
         for i, (on_uzaklik, conf) in enumerate(konumlu):
-            if on_uzaklik >= 0.5:           # arac kutusunun on yarisi
-                if i > 0:                   # en ondeki surucudur, digeri on yolcu
-                    cikti.append(('on_koltuk', conf))
+            if i == 0 and SURUCUYU_ATLA:
+                continue                    # en ondeki kisi SURUCUDUR, yolcu degil
+            if on_uzaklik >= 0.5:           # arac kutusunun on yarisi -> on yolcu
+                cikti.append(('on_koltuk', conf))
             else:                           # arka yari -> arka koltuk
                 cikti.append((ARKA_KOLTUK_ETIKET, conf))
         return cikti
