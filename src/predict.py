@@ -41,7 +41,8 @@ SLALOM_ADIM = 2.0     # sn - pencerenin kaydirma adimi
 # Tespit esikleri - kalibrasyon icin env ile degistirilebilir (kod duzenlemeden olcum).
 # 0.40 -> 0.20: faz2 uzerinde olculdu (F1 0.10 -> 0.14); 0.12 gurultuye boguluyor (0.08).
 CONF_CABIN = float(os.environ.get('CONF_CABIN', 0.20))
-CONF_NESNE = float(os.environ.get('CONF_NESNE', 0.45))
+# 0.45 -> 0.70: olculdu, recall AYNI (TP 23) ama FP 23 -> 18, F1 0.58 -> 0.61
+CONF_NESNE = float(os.environ.get('CONF_NESNE', 0.70))
 
 # FTR sema guvencesi: cikti YALNIZ bu degerleri icerebilir (ASCII kucuk harf, birebir).
 VALID_TIP = {'sedan', 'suv', 'hatchback', 'pickup', 'minibus', 'panelvan', 'kamyon'}
