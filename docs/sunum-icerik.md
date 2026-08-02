@@ -39,15 +39,18 @@ video → kare örnekleme → araç tespiti + takip
 
 Faz2 videosu + ground truth ile her adım ölçüldü:
 
-| Adım | Ne değişti | F1 |
+| # | Ne değişti | F1 |
 |---|---|---|
-| Taban | FTR'den gelen hat | **0,06** |
+| — | Taban (FTR'den gelen hat) | **0,06** |
 | 1 | Epizodik olay üretimi | 0,14 |
 | 2 | Kişi tespiti + geometrik koltuk ataması | 0,31 |
 | 3 | Epizotların araç geçişlerine hizalanması | 0,40 |
-| 4 | "En öndeki kişi sürücüdür" düzeltmesi | **0,47** |
+| 4 | "En öndeki kişi sürücüdür" düzeltmesi | 0,47 |
+| 5 | Alan-uyumlu kabin nesnesi modeli | 0,58 |
+| 6 | Eşik kalibrasyonu | 0,61 |
+| **VM** | **Değerlendirme ortamında ölçülen** | **0,66** |
 
-**~8 kat iyileşme — tek bir model eğitmeden.**
+**11 kat iyileşme.** 1–4 arası hiç model eğitmeden, yalnız mimari düzeltmelerle.
 
 Anlatılacak üç teşhis (hepsi ölçümle bulundu):
 1. **Tek-geçiş varsayımı:** hat 8 sn'lik video için tasarlanmıştı, etiket başına tek olay
@@ -66,11 +69,11 @@ Anlatılacak üç teşhis (hepsi ölçümle bulundu):
 
 | Bozulma | F1 kaybı |
 |---|---|
-| Uzaklaştırma (×0,5) | **kayıp yok** |
-| **Ayna (sol/sağ ters)** | **kayıp yok** |
-| Bulanıklık | %6 |
-| Parlaklık / karanlık | %9–10 |
-| Gürültü | %18 |
+| Uzaklaştırma (×0,5) | **kazanç** |
+| **Ayna (sol/sağ ters)** | **kazanç** |
+| Karanlık | %5 |
+| Parlaklık / bulanıklık | %6 |
+| Gürültü | %17 |
 
 Ayna testinde kayıp olmaması kritik: koltuk atamasını sabit "sol/sağ" varsayımına değil,
 **aracın hareket yönüne** dayandırdığımızı kanıtlıyor.
@@ -100,7 +103,7 @@ nicel göstermiştik (512 px'de küçük nesne mAP≈0; tam çözünürlükte 0,
 ## Slayt 7 — Dürüst sınırlar (45 sn)
 > Bu slaytı **atlamayın**. Jüri sınırlarını bilen ekibi ciddiye alır.
 
-- Şu an 13 etiket türünden 3'ünü güvenilir üretiyoruz; `teknocan`, kemer ihlali ve
+- Şu an 13 etiket türünden 7'sini güvenilir üretiyoruz; `teknocan`, kemer ihlali ve
   sürücü baş hareketleri için **domain-eşleşmeli veri gerekiyor** — kaynağı biz belirledik,
   eğitim planı hazır.
 - Düşük çözünürlükte (426×240) gürültü altında başarım düşüyor: bilgi tabanına yakınız.
