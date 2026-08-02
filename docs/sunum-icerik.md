@@ -103,9 +103,10 @@ nicel göstermiştik (512 px'de küçük nesne mAP≈0; tam çözünürlükte 0,
 ## Slayt 7 — Dürüst sınırlar (45 sn)
 > Bu slaytı **atlamayın**. Jüri sınırlarını bilen ekibi ciddiye alır.
 
-- Şu an 13 etiket türünden 7'sini güvenilir üretiyoruz; `teknocan`, kemer ihlali ve
-  sürücü baş hareketleri için **domain-eşleşmeli veri gerekiyor** — kaynağı biz belirledik,
-  eğitim planı hazır.
+- 13 etiket türünden **7'sini** güvenilir üretiyoruz. Kemer ihlali ve sürücü baş
+  hareketleri için domain-eşleşmeli veri yok — bunu **tahmin etmedik, ölçtük**:
+  kemerli sürücüde bile hiçbir model bandı bulamadı, çünkü o çekim açısında göğüs
+  bölgesi kadrajda değil.
 - Düşük çözünürlükte (426×240) gürültü altında başarım düşüyor: bilgi tabanına yakınız.
 - Yanlış tespit üretmemeyi kaçırmaya tercih ettik: denetim bağlamında yanlış ihlal
   bildirimi daha maliyetlidir.
@@ -113,7 +114,7 @@ nicel göstermiştik (512 px'de küçük nesne mAP≈0; tam çözünürlükte 0,
 ## Slayt 8 — Kapanış (30 sn)
 Üç cümle:
 1. Ölçüm altyapısı kurduk: her değişiklik **ground truth'a karşı** puanlandı.
-2. İyileşmeyi kanıtladık: **0,06 → 0,47**, model eğitmeden, mimari düzeltmelerle.
+2. İyileşmeyi kanıtladık: **0,06 → 0,66** — değerlendirme ortamında ölçüldü.
 3. Genellemeyi kanıtladık: bozulma, farklı araç ve duyarlılık testleriyle.
 
 *"Sonucumuz mükemmel değil; ama her rakamın arkasında bir ölçüm var."*
@@ -127,6 +128,6 @@ nicel göstermiştik (512 px'de küçük nesne mAP≈0; tam çözünürlükte 0,
 - Ekran görüntüsü olarak kullanılabilecek hazır görseller:
   `reports/saglamlik*.json`, `reports/qod_ispat.json`, VM Web UI'da
   `EXECUTION COMPLETED – status: SUCCESS` ekranı.
-- Soru gelirse hazır cevap: *"Neden F1 düşük?"* → "13 etiketin 10'u için domain-eşleşmeli
-  veri yok; hangi verinin gerektiğini ölçtük ve kaynaklarını belirledik. Elimizdekiyle
-  ulaşılabilir tavanı 8 kat yükselttik."
+- Soru gelirse hazır cevap: *"Neden F1 düşük?"* → "Her etiket için iki yönlü kanıt aradık:
+  sınıf varken tespit ediliyor mu VE yokken susuyor mu. Geçemeyeni üretmedik.
+  Ulaşılabilir tavanı 11 kat yükselttik: 0,06 → 0,66."
