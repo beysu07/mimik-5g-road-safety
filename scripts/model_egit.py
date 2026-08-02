@@ -37,8 +37,8 @@ def main():
         # --- ezberlemeye karsi agir augmentasyon ---
         hsv_h=0.02, hsv_s=0.7, hsv_v=0.6,   # renk/parlaklik: karanlik-aydinlik farki
         degrees=8.0, translate=0.15, scale=0.6, shear=2.0,
-        perspective=0.0005, fliplr=0.5, mosaic=1.0, mixup=0.1,
-        erasing=0.2,                         # kismi kapanma taklidi
+        perspective=0.0005, fliplr=0.5, mosaic=0.8,
+        # mixup/erasing kapali: ultralytics 8.4'te augment hatasi veriyordu
     )
     print('\nAgirlik: runs/detect/%s/weights/best.pt' % a.ad)
     print('Sonraki adim:')

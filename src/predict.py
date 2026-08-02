@@ -15,6 +15,7 @@ WEIGHTS = {
     'belt':    os.environ.get('W_BELT',  'runs/detect/seatbelt/weights/best.pt'),
     'action':  os.environ.get('W_ACTION', 'runs/detect/phone_action/weights/best.pt'),
     'cabin':   os.environ.get('W_CABIN', 'runs/detect/self_actions_hd/weights/best.pt'),
+    'nesne':   os.environ.get('W_NESNE', 'weights/kabin_v2.pt'),   # teknocan/bilgisayar/su/sigara
 }
 VEHICLE_COCO = {2, 5, 7}   # car, bus, truck
 LAPTOP_COCO = 63           # laptop -> bilgisayar
@@ -40,6 +41,7 @@ SLALOM_ADIM = 2.0     # sn - pencerenin kaydirma adimi
 # Tespit esikleri - kalibrasyon icin env ile degistirilebilir (kod duzenlemeden olcum).
 # 0.40 -> 0.20: faz2 uzerinde olculdu (F1 0.10 -> 0.14); 0.12 gurultuye boguluyor (0.08).
 CONF_CABIN = float(os.environ.get('CONF_CABIN', 0.20))
+CONF_NESNE = float(os.environ.get('CONF_NESNE', 0.45))
 
 # FTR sema guvencesi: cikti YALNIZ bu degerleri icerebilir (ASCII kucuk harf, birebir).
 VALID_TIP = {'sedan', 'suv', 'hatchback', 'pickup', 'minibus', 'panelvan', 'kamyon'}
@@ -307,6 +309,7 @@ class Pipeline:
         self.m_belt = _load(WEIGHTS['belt'])
         self.m_action = _load(WEIGHTS['action'])   # mobile -> telefonla_konusma (on cam)
         self.m_cabin = _load(WEIGHTS['cabin'])     # Self_v2 HD: yolcu koltuk siniflari
+        self.m_nesne = _load(WEIGHTS['nesne'])     # faz2+harici: kabin nesneleri
         try:
             import easyocr, torch
             self.ocr = easyocr.Reader(['en'], gpu=torch.cuda.is_available())
@@ -444,6 +447,18 @@ class Pipeline:
                 out[name] = c
         return out
 
+    def _kabin_nesneleri(self, crop):
+        """teknocan / bilgisayar / su_icme / sigara_icme (harici+faz2 ile egitildi)."""
+        if self.m_nesne is None or crop is None or crop.size == 0:
+            return {}
+        r = self.m_nesne.predict(crop, verbose=False, conf=CONF_NESNE, imgsz=960)[0]
+        out = {}
+        for b in r.boxes:
+            n = r.names[int(b.cls)]; c = float(b.conf)
+            if c > out.get(n, 0):
+                out[n] = c
+        return out
+
     def _belt(self, crop):
         if self.m_belt is None or crop.size == 0:
             return None
@@ -497,6 +512,12 @@ class Pipeline:
                 x1, y1, x2, y2 = vbox
                 crop = frame[y1:y2, x1:x2]
                 cabin = crop[0:int(crop.shape[0] * 0.65), :]   # arabanin ust kabin (greenhouse)
+                for ad, guven in self._kabin_nesneleri(crop).items():
+                    kat = 'nesneler' if ad in ('teknocan', 'bilgisayar') else 'sofor_eylemi'
+                    if ad in ('teknocan', 'bilgisayar'):
+                        mem.add_event(t, kat, ad, guven, gap=3.0)
+                    else:
+                        mem.add_action(ad, t, guven)
                 cab = self._cabin_objects(cabin)
                 if 'water' in cab:             # Self_v2 domain su -> su_icme
                     mem.add_action('su_icme', t, cab['water'])
