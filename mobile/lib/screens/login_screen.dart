@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../services/backend_client.dart';
+import '../services/demo_service.dart';
 import '../services/nv_service.dart';
 import 'live_screen.dart';
 
@@ -44,17 +45,35 @@ class _LoginScreenState extends State<LoginScreen> {
       _hata = null;
     });
     try {
-      final sonuc = await widget.nv.verify(_controller.text.trim());
+      // NV artik BACKEND uzerinden yapilir: client_id/secret orada durur ve
+      // dogrulama cihazin HUCRESEL agi uzerinden gerceklesir (sartname geregi).
+      final telefon = _controller.text.trim();
+      bool dogrulandi;
+      String detay;
+      try {
+        final nv = await DemoService(baseUrl: _sunucu.text.trim()).nvBasla(telefon);
+        if (!nv.dogrulandi && nv.authorizeUrl != null) {
+          // Gercek akis: cihaz mobil veride iken bu adres acilmali, sonra
+          // backend callback'i alinca /nv/durum true doner.
+          setState(() => _hata = 'Şebeke doğrulaması bekleniyor. Cihaz mobil '
+              'veride olmalı (Wi-Fi kapalı).\nAdres: ${nv.authorizeUrl}');
+          return;
+        }
+        dogrulandi = nv.dogrulandi;
+        detay = nv.detay;
+      } on Object {
+        // Backend erisilemiyorsa (gelistirme) yerel mock ile devam et.
+        final yerel = await widget.nv.verify(telefon);
+        dogrulandi = yerel.verified;
+        detay = yerel.detail;
+      }
       if (!mounted) return;
-      if (sonuc.verified) {
+      if (dogrulandi) {
         Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (_) => LiveScreen(
-            telefon: sonuc.devicePhoneNumber ?? _controller.text,
-            kaynak: _kaynakOlustur(),
-          ),
+          builder: (_) => LiveScreen(telefon: telefon, kaynak: _kaynakOlustur()),
         ));
       } else {
-        setState(() => _hata = sonuc.detail);
+        setState(() => _hata = detay);
       }
     } catch (e) {
       if (mounted) setState(() => _hata = '$e');
